@@ -1030,25 +1030,25 @@ main(int argc, char *argv[])
   close(open("usertests.ran", O_CREATE));
 
   opentest();
-  writetest();
-  writetest1();
-  createtest();
+  //writetest();
+  //writetest1();
+  //createtest();
 
-  mem();
-  pipe1();
-  preempt();
-  exitwait();
+  //mem();
+  //pipe1();
+  //preempt();
+  //exitwait();
 
-  fourteen();
-  bigfile();
-  subdir();
-  bigdir(); // slow
-  concreate();
-  linktest();
-  unlinkread();
-  createdelete();
-  twofiles();
-  sharedfd();
+  //fourteen();
+  //bigfile();
+  //subdir();
+  //bigdir(); // slow
+  //concreate();
+  //linktest();
+  //unlinkread();
+  //createdelete();
+  //twofiles();
+  //sharedfd();
 
   exectest();
 
