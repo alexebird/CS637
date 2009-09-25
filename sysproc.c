@@ -69,3 +69,9 @@ sys_sbrk(void)
   setupsegs(cp);
   return addr;
 }
+
+int
+sys_bird(void)
+{
+  return 4;
+}

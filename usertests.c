@@ -1018,6 +1018,13 @@ fourteen()
   printf(1, "fourteen ok\n");
 }
 
+void
+birdtest()
+{
+  printf(1, "running the bird system call.\n");
+  printf(1, "the bird system call returned: %d\n", bird());
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1029,7 +1036,7 @@ main(int argc, char *argv[])
   }
   close(open("usertests.ran", O_CREATE));
 
-  opentest();
+  //opentest();
   //writetest();
   //writetest1();
   //createtest();
@@ -1050,7 +1057,9 @@ main(int argc, char *argv[])
   //twofiles();
   //sharedfd();
 
-  exectest();
+  //exectest();
+  
+  birdtest();
 
   exit();
 }

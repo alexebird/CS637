@@ -107,6 +107,7 @@ extern int sys_sbrk(void);
 extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
+extern int sys_bird(void);
 
 void
 syscall(void)
@@ -172,6 +173,9 @@ syscall(void)
     break;
   case SYS_sbrk:
     ret = sys_sbrk();
+    break;
+  case SYS_bird:
+    ret = sys_bird();
     break;
   default:
     cprintf("unknown sys call %d\n", num);
