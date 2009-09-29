@@ -1,10 +1,19 @@
 #include "types.h"
-#include "defs.h"
+#include "stat.h"
 #include "param.h"
 #include "mmu.h"
 #include "proc.h"
+#include "defs.h"
 #include "x86.h"
+#include "traps.h"
 #include "syscall.h"
+#include "spinlock.h"
+#include "buf.h"
+#include "fs.h"
+#include "fsvar.h"
+#include "elf.h"
+#include "file.h"
+#include "fcntl.h"
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -28,38 +37,41 @@ fetchint(struct proc *p, uint addr, int *ip)
 int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
-  char *s, *ep;
+  char *cp, *ep;
 
   if(addr >= p->sz)
     return -1;
   *pp = p->mem + addr;
   ep = p->mem + p->sz;
-  for(s = *pp; s < ep; s++)
-    if(*s == 0)
-      return s - *pp;
+  for(cp = *pp; cp < ep; cp++)
+    if(*cp == 0)
+      return cp - *pp;
   return -1;
 }
 
-// Fetch the nth 32-bit system call argument.
+// Fetch the argno'th word-sized system call argument as an integer.
 int
-argint(int n, int *ip)
+argint(int argno, int *ip)
 {
-  return fetchint(cp, cp->tf->esp + 4 + 4*n, ip);
+  struct proc *p = curproc[cpu()];
+
+  return fetchint(p, p->tf->esp + 4 + 4*argno, ip);
 }
 
 // Fetch the nth word-sized system call argument as a pointer
 // to a block of memory of size n bytes.  Check that the pointer
 // lies within the process address space.
 int
-argptr(int n, char **pp, int size)
+argptr(int argno, char **pp, int size)
 {
   int i;
+  struct proc *p = curproc[cpu()];
   
-  if(argint(n, &i) < 0)
+  if(argint(argno, &i) < 0)
     return -1;
-  if((uint)i >= cp->sz || (uint)i+size >= cp->sz)
+  if((uint)i >= p->sz || (uint)i+size >= p->sz)
     return -1;
-  *pp = cp->mem + i;
+  *pp = p->mem + i;
   return 0;
 }
 
@@ -68,12 +80,12 @@ argptr(int n, char **pp, int size)
 // (There is no shared writable memory, so the string can't change
 // between this check and being used by the kernel.)
 int
-argstr(int n, char **pp)
+argstr(int argno, char **pp)
 {
   int addr;
-  if(argint(n, &addr) < 0)
+  if(argint(argno, &addr) < 0)
     return -1;
-  return fetchstr(cp, addr, pp);
+  return fetchstr(curproc[cpu()], addr, pp);
 }
 
 extern int sys_chdir(void);
@@ -92,45 +104,83 @@ extern int sys_open(void);
 extern int sys_pipe(void);
 extern int sys_read(void);
 extern int sys_sbrk(void);
-extern int sys_sleep(void);
 extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
-
-static int (*syscalls[])(void) = {
-[SYS_chdir]   sys_chdir,
-[SYS_close]   sys_close,
-[SYS_dup]     sys_dup,
-[SYS_exec]    sys_exec,
-[SYS_exit]    sys_exit,
-[SYS_fork]    sys_fork,
-[SYS_fstat]   sys_fstat,
-[SYS_getpid]  sys_getpid,
-[SYS_kill]    sys_kill,
-[SYS_link]    sys_link,
-[SYS_mkdir]   sys_mkdir,
-[SYS_mknod]   sys_mknod,
-[SYS_open]    sys_open,
-[SYS_pipe]    sys_pipe,
-[SYS_read]    sys_read,
-[SYS_sbrk]    sys_sbrk,
-[SYS_sleep]   sys_sleep,
-[SYS_unlink]  sys_unlink,
-[SYS_wait]    sys_wait,
-[SYS_write]   sys_write,
-};
+extern int sys_bird(void);
 
 void
 syscall(void)
 {
-  int num;
-  
-  num = cp->tf->eax;
-  if(num >= 0 && num < NELEM(syscalls) && syscalls[num])
-    cp->tf->eax = syscalls[num]();
-  else {
-    cprintf("%d %s: unknown sys call %d\n",
-            cp->pid, cp->name, num);
-    cp->tf->eax = -1;
+  struct proc *cp = curproc[cpu()];
+  int num = cp->tf->eax;
+  int ret = -1;
+
+  switch(num){
+  case SYS_fork:
+    ret = sys_fork();
+    break;
+  case SYS_exit:
+    ret = sys_exit();
+    break;
+  case SYS_wait:
+    ret = sys_wait();
+    break;
+  case SYS_pipe:
+    ret = sys_pipe();
+    break;
+  case SYS_write:
+    ret = sys_write();
+    break;
+  case SYS_read:
+    ret = sys_read();
+    break;
+  case SYS_close:
+    ret = sys_close();
+    break;
+  case SYS_kill:
+    ret = sys_kill();
+    break;
+  case SYS_exec:
+    ret = sys_exec();
+    break;
+  case SYS_open:
+    ret = sys_open();
+    break;
+  case SYS_mknod:
+    ret = sys_mknod();
+    break;
+  case SYS_unlink:
+    ret = sys_unlink();
+    break;
+  case SYS_fstat:
+    ret = sys_fstat();
+    break;
+  case SYS_link:
+    ret = sys_link();
+    break;
+  case SYS_mkdir:
+    ret = sys_mkdir();
+    break;
+  case SYS_chdir:
+    ret = sys_chdir();
+    break;
+  case SYS_dup:
+    ret = sys_dup();
+    break;
+  case SYS_getpid:
+    ret = sys_getpid();
+    break;
+  case SYS_sbrk:
+    ret = sys_sbrk();
+    break;
+  case SYS_bird:
+    ret = sys_bird();
+    break;
+  default:
+    cprintf("unknown sys call %d\n", num);
+    // Maybe kill the process?
+    break;
   }
+  cp->tf->eax = ret;
 }

@@ -1,56 +1,47 @@
-// Routines to let C code use special x86 instructions.
+// Special assembly routines to access x86-specific
+// hardware instructions.
 
-static inline uchar
-inb(ushort port)
+static __inline uchar
+inb(int port)
 {
   uchar data;
-
-  asm volatile("in %1,%0" : "=a" (data) : "d" (port));
+  __asm __volatile("inb %w1,%0" : "=a" (data) : "d" (port));
   return data;
 }
 
-static inline void
+static __inline void
 insl(int port, void *addr, int cnt)
 {
-  asm volatile("cld\n\trepne\n\tinsl"     :
+  __asm __volatile("cld\n\trepne\n\tinsl"     :
                    "=D" (addr), "=c" (cnt)    :
                    "d" (port), "0" (addr), "1" (cnt)  :
                    "memory", "cc");
 }
 
-static inline void
-outb(ushort port, uchar data)
+static __inline void
+outb(int port, uchar data)
 {
-  asm volatile("out %0,%1" : : "a" (data), "d" (port));
+  __asm __volatile("outb %0,%w1" : : "a" (data), "d" (port));
 }
 
-static inline void
-outw(ushort port, ushort data)
+static __inline void
+outw(int port, ushort data)
 {
-  asm volatile("out %0,%1" : : "a" (data), "d" (port));
+  __asm __volatile("outw %0,%w1" : : "a" (data), "d" (port));
 }
 
-static inline void
+static __inline void
 outsl(int port, const void *addr, int cnt)
 {
-  asm volatile("cld\n\trepne\n\toutsl"    :
+  __asm __volatile("cld\n\trepne\n\toutsl"    :
                    "=S" (addr), "=c" (cnt)    :
                    "d" (port), "0" (addr), "1" (cnt)  :
                    "cc");
 }
 
-static inline uint
-read_ebp(void)
-{
-  uint ebp;
-  
-  asm volatile("movl %%ebp, %0" : "=a" (ebp));
-  return ebp;
-}
-
 struct segdesc;
 
-static inline void
+static __inline void
 lgdt(struct segdesc *p, int size)
 {
   volatile ushort pd[3];
@@ -59,12 +50,12 @@ lgdt(struct segdesc *p, int size)
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
 
-  asm volatile("lgdt (%0)" : : "r" (pd));
+  asm volatile("lgdt (%0)" : : "g" (pd));
 }
 
 struct gatedesc;
 
-static inline void
+static __inline void
 lidt(struct gatedesc *p, int size)
 {
   volatile ushort pd[3];
@@ -73,56 +64,70 @@ lidt(struct gatedesc *p, int size)
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
 
-  asm volatile("lidt (%0)" : : "r" (pd));
+  asm volatile("lidt (%0)" : : "g" (pd));
 }
 
-static inline void
+static __inline void
 ltr(ushort sel)
 {
-  asm volatile("ltr %0" : : "r" (sel));
+  __asm __volatile("ltr %0" : : "r" (sel));
 }
 
-static inline uint
+static __inline uint
 read_eflags(void)
 {
   uint eflags;
-  asm volatile("pushfl; popl %0" : "=r" (eflags));
+  __asm __volatile("pushfl; popl %0" : "=r" (eflags));
   return eflags;
 }
 
-static inline void
+static __inline void
 write_eflags(uint eflags)
 {
-  asm volatile("pushl %0; popfl" : : "r" (eflags));
+  __asm __volatile("pushl %0; popfl" : : "r" (eflags));
 }
 
-static inline uint
-xchg(volatile uint *addr, uint newval)
+static __inline void
+cpuid(uint info, uint *eaxp, uint *ebxp, uint *ecxp, uint *edxp)
+{
+  uint eax, ebx, ecx, edx;
+  asm volatile("cpuid" :
+               "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) :
+               "a" (info));
+  if(eaxp)
+    *eaxp = eax;
+  if(ebxp)
+    *ebxp = ebx;
+  if(ecxp)
+    *ecxp = ecx;
+  if(edxp)
+    *edxp = edx;
+}
+
+static __inline uint
+cmpxchg(uint oldval, uint newval, volatile uint* lock_addr)
 {
   uint result;
-  
-  // The + in "+m" denotes a read-modify-write operand.
-  asm volatile("lock; xchgl %0, %1" :
-               "+m" (*addr), "=a" (result) :
-               "1" (newval) :
-               "cc");
+  __asm__ __volatile__("lock; cmpxchgl %2, %0" :
+                       "+m" (*lock_addr), "=a" (result) :
+                       "r"(newval), "1"(oldval) :
+                       "cc");
   return result;
 }
 
-static inline void
+static __inline void
 cli(void)
 {
-  asm volatile("cli");
+  __asm__ volatile("cli");
 }
 
-static inline void
+static __inline void
 sti(void)
 {
-  asm volatile("sti");
+  __asm__ volatile("sti");
 }
 
-// Layout of the trap frame built on the stack by the
-// hardware and by trapasm.S, and passed to trap().
+// Layout of the trap frame on the stack upon entry to trap.
 struct trapframe {
   // registers as pushed by pusha
   uint edi;

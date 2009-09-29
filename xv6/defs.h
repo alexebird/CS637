@@ -1,149 +1,140 @@
-struct buf;
-struct context;
-struct file;
-struct inode;
-struct pipe;
-struct proc;
-struct spinlock;
-struct stat;
-
-// bio.c
-void            binit(void);
-struct buf*     bread(uint, uint);
-void            brelse(struct buf*);
-void            bwrite(struct buf*);
+// kalloc.c
+char* kalloc(int);
+void kfree(char*, int);
+void kinit(void);
 
 // console.c
-void            console_init(void);
-void            cprintf(char*, ...);
-void            console_intr(int(*)(void));
-void            panic(char*) __attribute__((noreturn));
-
-// exec.c
-int             exec(char*, char**);
-
-// file.c
-struct file*    filealloc(void);
-void            fileclose(struct file*);
-struct file*    filedup(struct file*);
-void            fileinit(void);
-int             fileread(struct file*, char*, int n);
-int             filestat(struct file*, struct stat*);
-int             filewrite(struct file*, char*, int n);
-
-// fs.c
-int             dirlink(struct inode*, char*, uint);
-struct inode*   dirlookup(struct inode*, char*, uint*);
-struct inode*   ialloc(uint, short);
-struct inode*   idup(struct inode*);
-void            iinit(void);
-void            ilock(struct inode*);
-void            iput(struct inode*);
-void            iunlock(struct inode*);
-void            iunlockput(struct inode*);
-void            iupdate(struct inode*);
-int             namecmp(const char*, const char*);
-struct inode*   namei(char*);
-struct inode*   nameiparent(char*, char*);
-int             readi(struct inode*, char*, uint, uint);
-void            stati(struct inode*, struct stat*);
-int             writei(struct inode*, char*, uint, uint);
-
-// ide.c
-void            ide_init(void);
-void            ide_intr(void);
-void            ide_rw(struct buf *);
-
-// ioapic.c
-void            ioapic_enable(int irq, int cpu);
-extern uchar    ioapic_id;
-void            ioapic_init(void);
-
-// kalloc.c
-char*           kalloc(int);
-void            kfree(char*, int);
-void            kinit(void);
-
-// kbd.c
-void            kbd_intr(void);
-
-// lapic.c
-int             cpu(void);
-extern volatile uint*    lapic;
-void            lapic_eoi(void);
-void            lapic_init(int);
-void            lapic_startap(uchar, uint);
-
-// mp.c
-extern int      ismp;
-int             mp_bcpu(void);
-void            mp_init(void);
-void            mp_startthem(void);
-
-// picirq.c
-void            pic_enable(int);
-void            pic_init(void);
-
-// pipe.c
-int             pipealloc(struct file**, struct file**);
-void            pipeclose(struct pipe*, int);
-int             piperead(struct pipe*, char*, int);
-int             pipewrite(struct pipe*, char*, int);
+void console_init(void);
+void cprintf(char*, ...);
+void panic(char*);
+void kbd_intr(void);
 
 // proc.c
-struct proc*    copyproc(struct proc*);
-struct proc*    curproc(void);
-void            exit(void);
-int             growproc(int);
-int             kill(int);
-void            pinit(void);
-void            procdump(void);
-void            scheduler(void) __attribute__((noreturn));
-void            setupsegs(struct proc*);
-void            sleep(void*, struct spinlock*);
-void            userinit(void);
-int             wait(void);
-void            wakeup(void*);
-void            yield(void);
+void pinit(void);
+struct proc;
+void setupsegs(struct proc*);
+struct proc* copyproc(struct proc*);
+struct spinlock;
+int growproc(int);
+void sleep(void*, struct spinlock*);
+void wakeup(void*);
+void scheduler(void);
+void proc_exit(void);
+int proc_kill(int);
+int proc_wait(void);
+void yield(void);
+void procdump(void);
 
-// swtch.S
-void            swtch(struct context*, struct context*);
-
-// spinlock.c
-void            acquire(struct spinlock*);
-void            getcallerpcs(void*, uint*);
-int             holding(struct spinlock*);
-void            initlock(struct spinlock*, char*);
-void            release(struct spinlock*);
-void            pushcli();
-void            popcli();
-
-// string.c
-int             memcmp(const void*, const void*, uint);
-void*           memmove(void*, const void*, uint);
-void*           memset(void*, int, uint);
-char*           safestrcpy(char*, const char*, int);
-int             strlen(const char*);
-int             strncmp(const char*, const char*, uint);
-char*           strncpy(char*, const char*, int);
-
-// syscall.c
-int             argint(int, int*);
-int             argptr(int, char**, int);
-int             argstr(int, char**);
-int             fetchint(struct proc*, uint, int*);
-int             fetchstr(struct proc*, uint, char**);
-void            syscall(void);
-
-// timer.c
-void            timer_init(void);
+// setjmp.S
+struct jmpbuf;
+int setjmp(struct jmpbuf*);
+void longjmp(struct jmpbuf*);
 
 // trap.c
-void            idtinit(void);
-extern int      ticks;
-void            tvinit(void);
-extern struct spinlock tickslock;
+void tvinit(void);
+void idtinit(void);
 
-// number of elements in fixed-size array
-#define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+// string.c
+void* memset(void*, int, uint);
+int memcmp(const void*, const void*, uint);
+void* memmove(void*, const void*, uint);
+int strncmp(const char*, const char*, uint);
 
+// syscall.c
+void syscall(void);
+int fetchint(struct proc*, uint, int*);
+int fetchstr(struct proc*, uint, char**);
+int argint(int, int*);
+int argptr(int, char**, int);
+int argstr(int, char**);
+
+// picirq.c
+void pic_init(void);
+void irq_enable(int);
+
+// 8253pit.c
+void pit8253_timerinit(void);
+
+// mp.c
+extern int ismp;
+void mp_init(void);
+void mp_startthem(void);
+int mp_bcpu(void);
+
+// lapic.c
+extern uint *lapicaddr;
+void lapic_init(int);
+void lapic_startap(uchar, int);
+void lapic_timerinit(void);
+void lapic_timerintr(void);
+void lapic_enableintr(void);
+void lapic_disableintr(void);
+void lapic_eoi(void);
+int cpu(void);
+
+// ioapic.c
+extern uchar ioapic_id;
+void ioapic_init(void);
+void ioapic_enable(int irq, int cpu);
+
+// spinlock.c
+struct spinlock;
+void initlock(struct spinlock*, char*);
+void acquire(struct spinlock*);
+void release(struct spinlock*);
+int holding(struct spinlock*);
+void getcallerpcs(void*, uint*);
+
+// main.c
+void load_icode(struct proc*, uchar*, uint);
+
+// pipe.c
+struct pipe;
+struct file;
+int pipe_alloc(struct file**, struct file**);
+void pipe_close(struct pipe*, int);
+int pipe_write(struct pipe*, char*, int);
+int pipe_read(struct pipe*, char*, int);
+
+// file.c
+struct stat;
+void fileinit(void);
+struct file* filealloc(void);
+void fileclose(struct file*);
+int fileread(struct file*, char*, int n);
+int filewrite(struct file*, char*, int n);
+int filestat(struct file*, struct stat*);
+void fileincref(struct file*);
+
+// ide.c
+void ide_init(void);
+void ide_intr(void);
+void ide_rw(int, uint, void*, uint, int);
+
+// bio.c
+void binit(void);
+struct buf;
+struct buf* getblk(uint dev, uint sector);
+struct buf* bread(uint, uint);
+void bwrite(struct buf*, uint);
+void brelse(struct buf*);
+
+// fs.c
+extern uint rootdev;
+void iinit(void);
+struct inode* iget(uint, uint);
+void ilock(struct inode*);
+void iunlock(struct inode*);
+void itrunc(struct inode*);
+void idecref(struct inode*);
+void iincref(struct inode*);
+void iput(struct inode*);
+struct inode* namei(char*, int, uint*, char**, struct inode**);
+void stati(struct inode*, struct stat*);
+int readi(struct inode*, char*, uint, uint);
+int writei(struct inode*, char*, uint, uint);
+struct inode* mknod(char*, short, short, short);
+struct inode* mknod1(struct inode*, char*, short, short, short);
+int unlink(char*);
+void iupdate(struct inode*);
+int link(char*, char*);

@@ -1,5 +1,5 @@
 //
-// assembler macros to create x86 segments
+// macros to create x86 segments from assembler
 //
 
 #define SEG_NULLASM                                             \

@@ -1,5 +1,5 @@
 // On-disk file system format. 
-// Both the kernel and user programs use this header file.
+// This header is shared between kernel and user space.
 
 // Block 0 is unused.
 // Block 1 is super block.
@@ -53,4 +53,6 @@ struct dirent {
   ushort inum;
   char name[DIRSIZ];
 };
+
+extern uint rootdev;  // Device number of root file system
 
