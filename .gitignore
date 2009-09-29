@@ -1,0 +1,11 @@
+*.o
+*.asm
+*.d
+_*
+bootblock
+fs.img
+kernel
+mkfs
+usertests
+vectors.S
+xv6.img
