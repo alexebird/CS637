@@ -5,6 +5,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "trace.h"
 
 struct spinlock proc_table_lock;
 
@@ -14,6 +15,8 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void forkret1(struct trapframe*);
+
+int trace_status;
 
 void
 pinit(void)
@@ -219,6 +222,11 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release proc_table_lock and then reacquire it
       // before jumping back to us.
+
+      if (trace_status == TRACE_ON) {
+          cprintf("pid: %d\n", p->pid);
+      }
+
       c->curproc = p;
       setupsegs(p);
       p->state = RUNNING;

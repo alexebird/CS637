@@ -19,3 +19,5 @@
 #define SYS_getpid 18
 #define SYS_sbrk   19
 #define SYS_sleep  20
+#define SYS_bird   20
+#define SYS_schtrace 21
