@@ -182,6 +182,7 @@ scheduler(void)
       // to release proc_table_lock and then reacquire it
       // before jumping back to us.
 
+      cprintf("pid: %d\n", p->pid);
       setupsegs(p);
       curproc[cpu()] = p;
       p->state = RUNNING;
