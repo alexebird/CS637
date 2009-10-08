@@ -9,7 +9,7 @@ int
 main(int argc, char *argv[])
 {
   if (argc != 2) {
-    printf(1, "Usage: trace on|off|status\n");
+    printf(1, "Usage: trace on|off|st\n");
     exit();
   }
 
@@ -23,12 +23,12 @@ main(int argc, char *argv[])
     schtrace(TRACE_OFF);
     printf(1, "Scheduler tracing has been turned off.\n");
   }
-  else if (strcmp(cmd, "status") == 0) {
+  else if (strcmp(cmd, "st") == 0) {
     int st = schtrace(TRACE_STATUS);
     printf(1, "Scheduler tracing status: %s.\n", st == TRACE_ON ? "on" : "off");
   }
   else {
-    printf(1, "Usage: trace on|off|status\n");
+    printf(1, "Usage: trace on|off|st\n");
   }
 
   exit();
