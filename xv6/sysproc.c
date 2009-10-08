@@ -97,6 +97,7 @@ sys_schtrace()
       trace_status = TRACE_OFF;
       return 0;
     case TRACE_STATUS:
+      schtracedump();
       return trace_status;
     default:
       return -1;

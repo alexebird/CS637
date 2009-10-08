@@ -7,6 +7,8 @@
 #include "spinlock.h"
 #include "trace.h"
 
+#define MIN(x,y) (x < y ? x : y)
+
 struct spinlock proc_table_lock;
 
 struct proc proc[NPROC];
@@ -16,7 +18,10 @@ int nextpid = 1;
 extern void forkret(void);
 extern void forkret1(struct trapframe*);
 
-int trace_status;
+#define TRACE_SIZE (100)
+int trace_status = TRACE_ON;
+int trace[TRACE_SIZE];
+int trace_index = 0;
 
 void
 pinit(void)
@@ -224,7 +229,11 @@ scheduler(void)
       // before jumping back to us.
 
       if (trace_status == TRACE_ON) {
-          cprintf("pid: %d\n", p->pid);
+        //cprintf("pid: %d\n", p->pid);
+        if (trace[(trace_index - 1) % TRACE_SIZE] != p->pid) {
+          trace[trace_index % TRACE_SIZE] = p->pid;
+          trace_index++;
+        }
       }
 
       c->curproc = p;
@@ -487,3 +496,13 @@ procdump(void)
   }
 }
 
+void
+schtracedump(void)
+{
+  cprintf("The last %d jobs(oldest -> most recent):\n", MIN(TRACE_SIZE, trace_index));
+
+  int i;
+  for (i = 0; i < MIN(TRACE_SIZE, trace_index); i++) {
+    cprintf("pid: %d\n", trace[i % TRACE_SIZE]);
+  }
+}
