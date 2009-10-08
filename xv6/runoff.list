@@ -6,14 +6,12 @@ x86.h
 asm.h
 mmu.h
 elf.h
-mp.h
 
 # startup
 bootasm.S
 bootother.S
+bootmain.c
 main.c
-mp.c
-init.c
 
 # locks
 spinlock.h
@@ -22,15 +20,15 @@ spinlock.c
 # processes
 proc.h
 proc.c
-setjmp.S
+swtch.S
 kalloc.c
 
 # system calls
-syscall.h
-trapasm.S
 traps.h
-trap.c
 vectors.pl
+trapasm.S
+trap.c
+syscall.h
 syscall.c
 sysproc.c
 
@@ -47,6 +45,7 @@ bio.c
 fs.c
 file.c
 sysfile.c
+exec.c
 
 # pipes
 pipe.c
@@ -54,10 +53,21 @@ pipe.c
 # string operations
 string.c
 
-# low-level PC
-ioapic.h
+# low-level hardware
+mp.h
+mp.c
 lapic.c
 ioapic.c
 picirq.c
+kbd.h
+kbd.c
 console.c
-8253pit.c
+timer.c
+
+# user-level
+initcode.S
+init.c
+usys.S
+sh.c
+
+

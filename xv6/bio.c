@@ -1,35 +1,29 @@
 // Buffer cache.
 //
-// The buffer cache is a linked list of buf structures
-// holding cached copies of disk block contents.
-// Each buf has two state bits B_BUSY and B_VALID.
-// If B_BUSY is set, it means that some code is currently
-// editing buf, so other code is not allowed to look at it.
-// To wait for a buffer that is B_BUSY, sleep on buf.
-// (See bget below.)
+// The buffer cache is a linked list of buf structures holding
+// cached copies of disk block contents.  Caching disk blocks
+// in memory reduces the number of disk reads and also provides
+// a synchronization point for disk blocks used by multiple processes.
 // 
-// If B_VALID is set, it means that the memory contents
-// have been initialized by reading them off the disk.
-// (Conversely, if B_VALID is not set, the memory contents
-// of buf must be initialized, often by calling bread,
-// before being used.)
+// Interface:
+// * To get a buffer for a particular disk block, call bread.
+// * After changing buffer data, call bwrite to flush it to disk.
+// * When done with the buffer, call brelse.
+// * Do not use the buffer after calling brelse.
+// * Only one process at a time can use a buffer,
+//     so do not keep them longer than necessary.
 // 
-// After making changes to a buf's memory, call bwrite to flush
-// the changes out to disk, to keep the disk and memory copies
-// in sync.
-//
-// When finished with a buffer, call brelse to release the buffer
-// (i.e., clear B_BUSY), so that others can access it.
-//
-// Bufs that are not B_BUSY are fair game for reuse for other
-// disk blocks.  It is not allowed to use a buf after calling brelse.
+// The implementation uses three state flags internally:
+// * B_BUSY: the block has been returned from bread
+//     and has not been passed back to brelse.  
+// * B_VALID: the buffer data has been initialized
+//     with the associated disk block contents.
+// * B_DIRTY: the buffer data has been modified
+//     and needs to be written to disk.
 
 #include "types.h"
-#include "param.h"
-#include "x86.h"
-#include "mmu.h"
-#include "proc.h"
 #include "defs.h"
+#include "param.h"
 #include "spinlock.h"
 #include "buf.h"
 
@@ -59,7 +53,7 @@ binit(void)
   }
 }
 
-// Look through buffer cache for block n on device dev.
+// Look through buffer cache for sector on device dev.
 // If not found, allocate fresh block.
 // In either case, return locked buffer.
 static struct buf*
@@ -69,62 +63,54 @@ bget(uint dev, uint sector)
 
   acquire(&buf_table_lock);
 
-  for(;;){
-    for(b = bufhead.next; b != &bufhead; b = b->next)
-      if((b->flags & (B_BUSY|B_VALID)) &&
-         b->dev == dev && b->sector == sector)
-        break;
-
-    if(b != &bufhead){
+ loop:
+  // Try for cached block.
+  for(b = bufhead.next; b != &bufhead; b = b->next){
+    if((b->flags & (B_BUSY|B_VALID)) &&
+       b->dev == dev && b->sector == sector){
       if(b->flags & B_BUSY){
         sleep(buf, &buf_table_lock);
-      } else {
-        b->flags |= B_BUSY;
-        // b->flags &= ~B_VALID; // Force reread from disk
-        release(&buf_table_lock);
-        return b;
+        goto loop;
       }
-    } else {
-      for(b = bufhead.prev; b != &bufhead; b = b->prev){
-        if((b->flags & B_BUSY) == 0){
-          b->flags = B_BUSY;
-          b->dev = dev;
-          b->sector = sector;
-          release(&buf_table_lock);
-          return b;
-        }
-      }
-      panic("bget: no buffers");
+      b->flags |= B_BUSY;
+      release(&buf_table_lock);
+      return b;
     }
   }
+
+  // Allocate fresh block.
+  for(b = bufhead.prev; b != &bufhead; b = b->prev){
+    if((b->flags & B_BUSY) == 0){
+      b->flags = B_BUSY;
+      b->dev = dev;
+      b->sector = sector;
+      release(&buf_table_lock);
+      return b;
+    }
+  }
+  panic("bget: no buffers");
 }
 
-// Read buf's contents from disk.
+// Return a B_BUSY buf with the contents of the indicated disk sector.
 struct buf*
 bread(uint dev, uint sector)
 {
   struct buf *b;
 
   b = bget(dev, sector);
-  if(b->flags & B_VALID)
-    return b;
-
-  ide_rw(dev & 0xff, sector, b->data, 1, 1);
-  b->flags |= B_VALID;
-
+  if(!(b->flags & B_VALID))
+    ide_rw(b);
   return b;
 }
 
-// Write buf's contents to disk.
-// Must be locked.
+// Write buf's contents to disk.  Must be locked.
 void
-bwrite(struct buf *b, uint sector)
+bwrite(struct buf *b)
 {
   if((b->flags & B_BUSY) == 0)
     panic("bwrite");
-
-  ide_rw(b->dev & 0xff, sector, b->data, 1, 0);
-  b->flags |= B_VALID;
+  b->flags |= B_DIRTY;
+  ide_rw(b);
 }
 
 // Release the buffer buf.

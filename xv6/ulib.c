@@ -3,12 +3,6 @@
 #include "fcntl.h"
 #include "user.h"
 
-int
-puts(char *s)
-{
-  return write(1, s, strlen(s));
-}
-
 char*
 strcpy(char *s, char *t)
 {
@@ -25,26 +19,27 @@ strcmp(const char *p, const char *q)
 {
   while(*p && *p == *q)
     p++, q++;
-  return (int) ((unsigned char) *p - (unsigned char) *q);
+  return (uchar)*p - (uchar)*q;
 }
 
-unsigned int
+uint
 strlen(char *s)
 {
-  int n = 0;
+  int n;
+
   for(n = 0; s[n]; n++)
     ;
   return n;
 }
 
 void*
-memset(void *dst, int c, unsigned int n)
+memset(void *dst, int c, uint n)
 {
-  char *d = (char*) dst;
-
+  char *d;
+  
+  d = dst;
   while(n-- > 0)
     *d++ = c;
-
   return dst;
 }
 
@@ -60,16 +55,16 @@ strchr(const char *s, char c)
 char*
 gets(char *buf, int max)
 {
-  int i = 0, cc;
+  int i, cc;
   char c;
 
-  while(i+1 < max){
+  for(i=0; i+1 < max; ){
     cc = read(0, &c, 1);
     if(cc < 1)
       break;
+    buf[i++] = c;
     if(c == '\n' || c == '\r')
       break;
-    buf[i++] = c;
   }
   buf[i] = '\0';
   return buf;
@@ -87,4 +82,27 @@ stat(char *n, struct stat *st)
   r = fstat(fd, st);
   close(fd);
   return r;
+}
+
+int
+atoi(const char *s)
+{
+  int n;
+
+  n = 0;
+  while('0' <= *s && *s <= '9')
+    n = n*10 + *s++ - '0';
+  return n;
+}
+
+void*
+memmove(void *vdst, void *vsrc, int n)
+{
+  char *dst, *src;
+  
+  dst = vdst;
+  src = vsrc;
+  while(n-- > 0)
+    *dst++ = *src++;
+  return vdst;
 }

@@ -1,35 +1,33 @@
 #include "types.h"
+#include "defs.h"
 #include "param.h"
-#include "x86.h"
 #include "mmu.h"
 #include "proc.h"
-#include "defs.h"
 #include "file.h"
 #include "spinlock.h"
 
 #define PIPESIZE 512
 
 struct pipe {
-  int readopen; // read fd is still open
-  int writeopen; // write fd is still open
-  int writep; // next index to write
-  int readp;  // next index to read
+  int readopen;   // read fd is still open
+  int writeopen;  // write fd is still open
+  uint writep;    // next index to write
+  uint readp;     // next index to read
   struct spinlock lock;
   char data[PIPESIZE];
 };
 
 int
-pipe_alloc(struct file **f0, struct file **f1)
+pipealloc(struct file **f0, struct file **f1)
 {
-  *f0 = *f1 = 0;
-  struct pipe *p = 0;
+  struct pipe *p;
 
-  if((*f0 = filealloc()) == 0)
-    goto oops;
-  if((*f1 = filealloc()) == 0)
-    goto oops;
-  if((p = (struct pipe*) kalloc(PAGE)) == 0)
-    goto oops;
+  p = 0;
+  *f0 = *f1 = 0;
+  if((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
+    goto bad;
+  if((p = (struct pipe*)kalloc(PAGE)) == 0)
+    goto bad;
   p->readopen = 1;
   p->writeopen = 1;
   p->writep = 0;
@@ -44,9 +42,10 @@ pipe_alloc(struct file **f0, struct file **f1)
   (*f1)->writable = 1;
   (*f1)->pipe = p;
   return 0;
- oops:
+
+ bad:
   if(p)
-    kfree((char*) p, PAGE);
+    kfree((char*)p, PAGE);
   if(*f0){
     (*f0)->type = FD_NONE;
     fileclose(*f0);
@@ -59,10 +58,9 @@ pipe_alloc(struct file **f0, struct file **f1)
 }
 
 void
-pipe_close(struct pipe *p, int writable)
+pipeclose(struct pipe *p, int writable)
 {
   acquire(&p->lock);
-
   if(writable){
     p->writeopen = 0;
     wakeup(&p->readp);
@@ -70,61 +68,53 @@ pipe_close(struct pipe *p, int writable)
     p->readopen = 0;
     wakeup(&p->writep);
   }
-
   release(&p->lock);
 
   if(p->readopen == 0 && p->writeopen == 0)
-    kfree((char*) p, PAGE);
+    kfree((char*)p, PAGE);
 }
 
 int
-pipe_write(struct pipe *p, char *addr, int n)
+pipewrite(struct pipe *p, char *addr, int n)
 {
   int i;
 
   acquire(&p->lock);
-
   for(i = 0; i < n; i++){
-    while(((p->writep + 1) % PIPESIZE) == p->readp){
-      if(p->readopen == 0){
+    while(p->writep == p->readp + PIPESIZE) {
+      if(p->readopen == 0 || cp->killed){
         release(&p->lock);
         return -1;
       }
       wakeup(&p->readp);
       sleep(&p->writep, &p->lock);
     }
-    p->data[p->writep] = addr[i];
-    p->writep = (p->writep + 1) % PIPESIZE;
+    p->data[p->writep++ % PIPESIZE] = addr[i];
   }
-
-  release(&p->lock);
   wakeup(&p->readp);
+  release(&p->lock);
   return i;
 }
 
 int
-pipe_read(struct pipe *p, char *addr, int n)
+piperead(struct pipe *p, char *addr, int n)
 {
   int i;
 
   acquire(&p->lock);
-
-  while(p->readp == p->writep){
-    if(p->writeopen == 0){
+  while(p->readp == p->writep && p->writeopen){
+    if(cp->killed){
       release(&p->lock);
-      return 0;
+      return -1;
     }
     sleep(&p->readp, &p->lock);
   }
-
   for(i = 0; i < n; i++){
     if(p->readp == p->writep)
       break;
-    addr[i] = p->data[p->readp];
-    p->readp = (p->readp + 1) % PIPESIZE;
+    addr[i] = p->data[p->readp++ % PIPESIZE];
   }
-
-  release(&p->lock);
   wakeup(&p->writep);
+  release(&p->lock);
   return i;
 }

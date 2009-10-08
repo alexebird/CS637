@@ -1,19 +1,12 @@
 #include "types.h"
-#include "stat.h"
-#include "param.h"
-#include "x86.h"
-#include "mmu.h"
-#include "proc.h"
 #include "defs.h"
+#include "param.h"
 #include "file.h"
 #include "spinlock.h"
 #include "dev.h"
-#include "fs.h"
-#include "fsvar.h"
 
-struct spinlock file_table_lock;
 struct devsw devsw[NDEV];
-
+struct spinlock file_table_lock;
 struct file file[NFILE];
 
 void
@@ -22,7 +15,7 @@ fileinit(void)
   initlock(&file_table_lock, "file_table");
 }
 
-// Allocate a file structure
+// Allocate a file structure.
 struct file*
 filealloc(void)
 {
@@ -41,97 +34,94 @@ filealloc(void)
   return 0;
 }
 
-// Write to file f.  Addr is kernel address.
-int
-filewrite(struct file *f, char *addr, int n)
+// Increment ref count for file f.
+struct file*
+filedup(struct file *f)
 {
-  if(f->writable == 0)
-    return -1;
-  if(f->type == FD_PIPE){
-    return pipe_write(f->pipe, addr, n);
-  } else if(f->type == FD_FILE) {
-    ilock(f->ip);
-    int r = writei(f->ip, addr, f->off, n);
-    if(r > 0) {
-      f->off += r;
-    }
-    iunlock(f->ip);
-    return r;
-  } else {
-    panic("filewrite");
-    return -1;
-  }
-}
-
-// Read from file f.  Addr is kernel address.
-int
-fileread(struct file *f, char *addr, int n)
-{
-  if(f->readable == 0)
-    return -1;
-  if(f->type == FD_PIPE){
-    return pipe_read(f->pipe, addr, n);
-  } else if(f->type == FD_FILE){
-    ilock(f->ip);
-    int cc = readi(f->ip, addr, f->off, n);
-    if(cc > 0)
-      f->off += cc;
-    iunlock(f->ip);
-    return cc;
-  } else {
-    panic("fileread");
-    return -1;
-  }
+  acquire(&file_table_lock);
+  if(f->ref < 1 || f->type == FD_CLOSED)
+    panic("filedup");
+  f->ref++;
+  release(&file_table_lock);
+  return f;
 }
 
 // Close file f.  (Decrement ref count, close when reaches 0.)
 void
 fileclose(struct file *f)
 {
-  acquire(&file_table_lock);
+  struct file ff;
 
+  acquire(&file_table_lock);
   if(f->ref < 1 || f->type == FD_CLOSED)
     panic("fileclose");
-
-  if(--f->ref == 0){
-    struct file dummy = *f;
-
-    f->ref = 0;
-    f->type = FD_CLOSED;
+  if(--f->ref > 0){
     release(&file_table_lock);
-
-    if(dummy.type == FD_PIPE){
-      pipe_close(dummy.pipe, dummy.writable);
-    } else if(dummy.type == FD_FILE){
-      idecref(dummy.ip);
-    } else {
-      panic("fileclose");
-    }
-  } else {
-    release(&file_table_lock);
+    return;
   }
+  ff = *f;
+  f->ref = 0;
+  f->type = FD_CLOSED;
+  release(&file_table_lock);
+  
+  if(ff.type == FD_PIPE)
+    pipeclose(ff.pipe, ff.writable);
+  else if(ff.type == FD_INODE)
+    iput(ff.ip);
+  else
+    panic("fileclose");
 }
 
 // Get metadata about file f.
 int
 filestat(struct file *f, struct stat *st)
 {
-  if(f->type == FD_FILE){
+  if(f->type == FD_INODE){
     ilock(f->ip);
     stati(f->ip, st);
     iunlock(f->ip);
     return 0;
-  } else
-    return -1;
+  }
+  return -1;
 }
 
-// Increment ref count for file f.
-void
-fileincref(struct file *f)
+// Read from file f.  Addr is kernel address.
+int
+fileread(struct file *f, char *addr, int n)
 {
-  acquire(&file_table_lock);
-  if(f->ref < 1 || f->type == FD_CLOSED)
-    panic("fileincref");
-  f->ref++;
-  release(&file_table_lock);
+  int r;
+
+  if(f->readable == 0)
+    return -1;
+  if(f->type == FD_PIPE)
+    return piperead(f->pipe, addr, n);
+  if(f->type == FD_INODE){
+    ilock(f->ip);
+    if((r = readi(f->ip, addr, f->off, n)) > 0)
+      f->off += r;
+    iunlock(f->ip);
+    return r;
+  }
+  panic("fileread");
 }
+
+// Write to file f.  Addr is kernel address.
+int
+filewrite(struct file *f, char *addr, int n)
+{
+  int r;
+
+  if(f->writable == 0)
+    return -1;
+  if(f->type == FD_PIPE)
+    return pipewrite(f->pipe, addr, n);
+  if(f->type == FD_INODE){
+    ilock(f->ip);
+    if((r = writei(f->ip, addr, f->off, n)) > 0)
+      f->off += r;
+    iunlock(f->ip);
+    return r;
+  }
+  panic("filewrite");
+}
+

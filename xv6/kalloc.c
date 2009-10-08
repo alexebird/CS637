@@ -5,12 +5,9 @@
 // One reason the page size is 4k is that the x86 segment size
 // granularity is 4k.
 
-#include "param.h"
 #include "types.h"
 #include "defs.h"
 #include "param.h"
-#include "mmu.h"
-#include "proc.h"
 #include "spinlock.h"
 
 struct spinlock kalloc_lock;
@@ -40,57 +37,47 @@ kinit(void)
   kfree(start, mem * PAGE);
 }
 
-// Free the len bytes of memory pointed at by cp,
+// Free the len bytes of memory pointed at by v,
 // which normally should have been returned by a
-// call to kalloc(cp).  (The exception is when
+// call to kalloc(len).  (The exception is when
 // initializing the allocator; see kinit above.)
 void
-kfree(char *cp, int len)
+kfree(char *v, int len)
 {
-  struct run **rr;
-  struct run *p = (struct run*) cp;
-  struct run *pend = (struct run*) (cp + len);
-  int i;
+  struct run *r, *rend, **rp, *p, *pend;
 
-  if(len % PAGE)
+  if(len <= 0 || len % PAGE)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
-  for(i = 0; i < len; i++)
-    cp[i] = 1;
+  memset(v, 1, len);
 
   acquire(&kalloc_lock);
-
-  rr = &freelist;
-  while(*rr){
-    struct run *rend = (struct run*) ((char*)(*rr) + (*rr)->len);
-    if(p >= *rr && p < rend)
+  p = (struct run*)v;
+  pend = (struct run*)(v + len);
+  for(rp=&freelist; (r=*rp) != 0 && r <= pend; rp=&r->next){
+    rend = (struct run*)((char*)r + r->len);
+    if(r <= p && p < rend)
       panic("freeing free page");
-    if(pend == *rr){
-      p->len = len + (*rr)->len;
-      p->next = (*rr)->next;
-      *rr = p;
+    if(pend == r){  // p next to r: replace r with p
+      p->len = len + r->len;
+      p->next = r->next;
+      *rp = p;
       goto out;
     }
-    if(pend < *rr){
-      p->len = len;
-      p->next = *rr;
-      *rr = p;
-      goto out;
-    }
-    if(p == rend){
-      (*rr)->len += len;
-      if((*rr)->next && (*rr)->next == pend){
-        (*rr)->len += (*rr)->next->len;
-        (*rr)->next = (*rr)->next->next;
+    if(rend == p){  // r next to p: replace p with r
+      r->len += len;
+      if(r->next && r->next == pend){  // r now next to r->next?
+        r->len += r->next->len;
+        r->next = r->next->next;
       }
       goto out;
     }
-    rr = &((*rr)->next);
   }
+  // Insert p before r in list.
   p->len = len;
-  p->next = 0;
-  *rr = p;
+  p->next = r;
+  *rp = p;
 
  out:
   release(&kalloc_lock);
@@ -102,30 +89,28 @@ kfree(char *cp, int len)
 char*
 kalloc(int n)
 {
-  struct run **rr;
+  char *p;
+  struct run *r, **rp;
 
-  if(n % PAGE)
+  if(n % PAGE || n <= 0)
     panic("kalloc");
 
   acquire(&kalloc_lock);
-
-  rr = &freelist;
-  while(*rr){
-    struct run *r = *rr;
+  for(rp=&freelist; (r=*rp) != 0; rp=&r->next){
     if(r->len == n){
-      *rr = r->next;
+      *rp = r->next;
       release(&kalloc_lock);
-      return (char*) r;
+      return (char*)r;
     }
     if(r->len > n){
-      char *p = (char*)r + (r->len - n);
       r->len -= n;
+      p = (char*)r + r->len;
       release(&kalloc_lock);
       return p;
     }
-    rr = &(*rr)->next;
   }
   release(&kalloc_lock);
+
   cprintf("kalloc: out of memory\n");
   return 0;
 }

@@ -1,13 +1,14 @@
 // Simple PIO-based (non-DMA) IDE driver code.
 
 #include "types.h"
+#include "defs.h"
 #include "param.h"
 #include "mmu.h"
 #include "proc.h"
-#include "defs.h"
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
+#include "buf.h"
 
 #define IDE_BSY       0x80
 #define IDE_DRDY      0x40
@@ -17,28 +18,15 @@
 #define IDE_CMD_READ  0x20
 #define IDE_CMD_WRITE 0x30
 
-// IDE request queue.
-// The next request will be stored in request[head],
-// and the request currently being served by the disk
-// is request[tail].
-// Must hold ide_lock while manipulating queue.
+// ide_queue points to the buf now being read/written to the disk.
+// ide_queue->qnext points to the next buf to be processed.
+// You must hold ide_lock while manipulating queue.
 
-struct ide_request {
-  int diskno;
-  uint secno;
-  void *addr;
-  uint nsecs;
-  uint read;
-};
-
-static struct ide_request request[NREQUEST];
-static int head, tail;
 static struct spinlock ide_lock;
+static struct buf *ide_queue;
 
 static int disk_1_present;
-static int disk_queue;
-
-static int ide_probe_disk1(void);
+static void ide_start_request();
 
 // Wait for IDE disk to become ready.
 static int
@@ -46,9 +34,8 @@ ide_wait_ready(int check_error)
 {
   int r;
 
-  while(((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
+  while(((r = inb(0x1f7)) & IDE_BSY) || !(r & IDE_DRDY))
     ;
-
   if(check_error && (r & (IDE_DF|IDE_ERR)) != 0)
     return -1;
   return 0;
@@ -57,137 +44,107 @@ ide_wait_ready(int check_error)
 void
 ide_init(void)
 {
+  int i;
+
   initlock(&ide_lock, "ide");
-  irq_enable(IRQ_IDE);
+  pic_enable(IRQ_IDE);
   ioapic_enable(IRQ_IDE, ncpu - 1);
   ide_wait_ready(0);
-  disk_1_present = ide_probe_disk1();
+  
+  // Check if disk 1 is present
+  outb(0x1f6, 0xe0 | (1<<4));
+  for(i=0; i<1000; i++){
+    if(inb(0x1f7) != 0){
+      disk_1_present = 1;
+      break;
+    }
+  }
+  
+  // Switch back to disk 0.
+  outb(0x1f6, 0xe0 | (0<<4));
 }
 
-// Probe to see if disk 1 exists (we assume disk 0 exists).
-static int
-ide_probe_disk1(void)
+// Start the request for b.  Caller must hold ide_lock.
+static void
+ide_start_request(struct buf *b)
 {
-  int r, x;
+  if(b == 0)
+    panic("ide_start_request");
 
-  // wait for Device 0 to be ready
   ide_wait_ready(0);
-
-  // switch to Device 1
-  outb(0x1F6, 0xE0 | (1<<4));
-
-  // check for Device 1 to be ready for a while
-  for(x = 0; x < 1000 && (r = inb(0x1F7)) == 0; x++)
-    ;
-
-  // switch back to Device 0
-  outb(0x1F6, 0xE0 | (0<<4));
-
-  return x < 1000;
+  outb(0x3f6, 0);  // generate interrupt
+  outb(0x1f2, 1);  // number of sectors
+  outb(0x1f3, b->sector & 0xff);
+  outb(0x1f4, (b->sector >> 8) & 0xff);
+  outb(0x1f5, (b->sector >> 16) & 0xff);
+  outb(0x1f6, 0xe0 | ((b->dev&1)<<4) | ((b->sector>>24)&0x0f));
+  if(b->flags & B_DIRTY){
+    outb(0x1f7, IDE_CMD_WRITE);
+    outsl(0x1f0, b->data, 512/4);
+  } else {
+    outb(0x1f7, IDE_CMD_READ);
+  }
 }
 
-// Interrupt handler - wake up the request that just finished.
+// Interrupt handler.
 void
 ide_intr(void)
 {
+  struct buf *b;
+
   acquire(&ide_lock);
-  wakeup(&request[tail]);
+  if((b = ide_queue) == 0){
+    release(&ide_lock);
+    return;
+  }
+
+  // Read data if needed.
+  if(!(b->flags & B_DIRTY) && ide_wait_ready(1) >= 0)
+    insl(0x1f0, b->data, 512/4);
+  
+  // Wake process waiting for this buf.
+  b->flags |= B_VALID;
+  b->flags &= ~B_DIRTY;
+  wakeup(b);
+  
+  // Start disk on next buf in queue.
+  if((ide_queue = b->qnext) != 0)
+    ide_start_request(ide_queue);
+
   release(&ide_lock);
 }
 
-// Start the next request in the queue.
-static void
-ide_start_request (void)
-{
-  struct ide_request *r;
-
-  if(head != tail) {
-    r = &request[tail];
-    ide_wait_ready(0);
-    outb(0x3f6, 0);  // generate interrupt
-    outb(0x1F2, r->nsecs);
-    outb(0x1F3, r->secno & 0xFF);
-    outb(0x1F4, (r->secno >> 8) & 0xFF);
-    outb(0x1F5, (r->secno >> 16) & 0xFF);
-    outb(0x1F6, 0xE0 | ((r->diskno&1)<<4) | ((r->secno>>24)&0x0F));
-    if(r->read)
-      outb(0x1F7, IDE_CMD_READ);
-    else {
-      outb(0x1F7, IDE_CMD_WRITE);
-      outsl(0x1F0, r->addr, 512/4);
-    }
-  }
-}
-
-// Run an entire disk operation.
+// Sync buf with disk. 
+// If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
+// Else if B_VALID is not set, read buf from disk, set B_VALID.
 void
-ide_rw(int diskno, uint secno, void *addr, uint nsecs, int read)
+ide_rw(struct buf *b)
 {
-  struct ide_request *r;
+  struct buf **pp;
 
-  if(diskno && !disk_1_present)
+  if(!(b->flags & B_BUSY))
+    panic("ide_rw: buf not busy");
+  if((b->flags & (B_VALID|B_DIRTY)) == B_VALID)
+    panic("ide_rw: nothing to do");
+  if(b->dev != 0 && !disk_1_present)
     panic("ide disk 1 not present");
 
   acquire(&ide_lock);
+
+  // Append b to ide_queue.
+  b->qnext = 0;
+  for(pp=&ide_queue; *pp; pp=&(*pp)->qnext)
+    ;
+  *pp = b;
   
-  // Add request to queue.
-  while((head + 1) % NREQUEST == tail)
-    sleep(&disk_queue, &ide_lock);
-
-  r = &request[head];
-  r->secno = secno;
-  r->addr = addr;
-  r->nsecs = nsecs;
-  r->diskno = diskno;
-  r->read = read;
-  head = (head + 1) % NREQUEST;
-
-  // Start request if necessary.
-  ide_start_request();
+  // Start disk if necessary.
+  if(ide_queue == b)
+    ide_start_request(b);
   
   // Wait for request to finish.
-  sleep(r, &ide_lock);
-  
-  // Finish request.
-  if(read){
-    if(ide_wait_ready(1) >= 0)
-      insl(0x1F0, addr, 512/4);
-  }
-
-  // Remove request from queue.
-  if((head + 1) % NREQUEST == tail)
-    wakeup(&disk_queue);
-  tail = (tail + 1) % NREQUEST;
-
-  // Start next request in queue, if any.
-  ide_start_request();
+  // Assuming will not sleep too long: ignore cp->killed.
+  while((b->flags & (B_VALID|B_DIRTY)) != B_VALID)
+    sleep(b, &ide_lock);
 
   release(&ide_lock);
-}
-
-// Synchronous disk write.
-int
-ide_write(int diskno, uint secno, const void *src, uint nsecs)
-{
-  int r;
-
-  if(nsecs > 256)
-    panic("ide_write");
-
-  ide_wait_ready(0);
-
-  outb(0x1F2, nsecs);
-  outb(0x1F3, secno & 0xFF);
-  outb(0x1F4, (secno >> 8) & 0xFF);
-  outb(0x1F5, (secno >> 16) & 0xFF);
-  outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
-  outb(0x1F7, 0x30);    // CMD 0x30 means write sector
-
-  for(; nsecs > 0; nsecs--, src += 512) {
-    if((r = ide_wait_ready(1)) < 0)
-      return r;
-    outsl(0x1F0, src, 512/4);
-  }
-
-  return 0;
 }

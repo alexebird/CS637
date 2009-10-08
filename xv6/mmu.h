@@ -47,13 +47,15 @@ struct segdesc {
 // Normal segment
 #define SEG(type, base, lim, dpl) (struct segdesc)                      \
 { ((lim) >> 12) & 0xffff, (base) & 0xffff, ((base) >> 16) & 0xff,       \
-    type, 1, dpl, 1, (uint) (lim) >> 28, 0, 0, 1, 1,            \
+    type, 1, dpl, 1, (uint) (lim) >> 28, 0, 0, 1, 1,                    \
     (uint) (base) >> 24 }
 
 #define SEG16(type, base, lim, dpl) (struct segdesc)                    \
 { (lim) & 0xffff, (base) & 0xffff, ((base) >> 16) & 0xff,               \
-    type, 1, dpl, 1, (uint) (lim) >> 16, 0, 0, 1, 0,            \
+    type, 1, dpl, 1, (uint) (lim) >> 16, 0, 0, 1, 0,                    \
     (uint) (base) >> 24 }
+
+#define DPL_USER    0x3     // User DPL
 
 // Application segment type bits
 #define STA_X       0x8     // Executable segment
@@ -79,9 +81,9 @@ struct segdesc {
 
 // Task state segment format
 struct taskstate {
-  uint link;      // Old ts selector
-  uint esp0;      // Stack pointers and segment selectors
-  ushort ss0;     //   after an increase in privilege level
+  uint link;         // Old ts selector
+  uint esp0;         // Stack pointers and segment selectors
+  ushort ss0;        //   after an increase in privilege level
   ushort padding1;
   uint *esp1;
   ushort ss1;
@@ -89,10 +91,10 @@ struct taskstate {
   uint *esp2;
   ushort ss2;
   ushort padding3;
-  void *cr3;     // Page directory base
-  uint *eip;     // Saved state from last task switch
+  void *cr3;         // Page directory base
+  uint *eip;         // Saved state from last task switch
   uint eflags;
-  uint eax;       // More saved state (registers)
+  uint eax;          // More saved state (registers)
   uint ecx;
   uint edx;
   uint ebx;
@@ -100,7 +102,7 @@ struct taskstate {
   uint *ebp;
   uint esi;
   uint edi;
-  ushort es;              // Even more saved state (segment selectors)
+  ushort es;         // Even more saved state (segment selectors)
   ushort padding4;
   ushort cs;
   ushort padding5;
@@ -114,14 +116,14 @@ struct taskstate {
   ushort padding9;
   ushort ldt;
   ushort padding10;
-  ushort t;               // Trap on task switch
-  ushort iomb;    // I/O map base address
+  ushort t;          // Trap on task switch
+  ushort iomb;       // I/O map base address
 };
 
 // Gate descriptors for interrupts and traps
 struct gatedesc {
   uint off_15_0 : 16;   // low 16 bits of offset in segment
-  uint ss : 16;         // segment selector
+  uint cs : 16;         // code segment selector
   uint args : 5;        // # args, 0 for interrupt/trap gates
   uint rsv1 : 3;        // reserved(should be zero I guess)
   uint type : 4;        // type(STS_{TG,IG32,TG32})
@@ -139,16 +141,16 @@ struct gatedesc {
 // - dpl: Descriptor Privilege Level -
 //        the privilege level required for software to invoke
 //        this interrupt/trap gate explicitly using an int instruction.
-#define SETGATE(gate, istrap, sel, off, d)                      \
-{                                                               \
+#define SETGATE(gate, istrap, sel, off, d)                \
+{                                                         \
   (gate).off_15_0 = (uint) (off) & 0xffff;                \
-  (gate).ss = (sel);                                      \
+  (gate).cs = (sel);                                      \
   (gate).args = 0;                                        \
   (gate).rsv1 = 0;                                        \
-  (gate).type = (istrap) ? STS_TG32 : STS_IG32;   \
-  (gate).s = 0;                                   \
+  (gate).type = (istrap) ? STS_TG32 : STS_IG32;           \
+  (gate).s = 0;                                           \
   (gate).dpl = (d);                                       \
-  (gate).p = 1;                                   \
-  (gate).off_31_16 = (uint) (off) >> 16;          \
+  (gate).p = 1;                                           \
+  (gate).off_31_16 = (uint) (off) >> 16;                  \
 }
 

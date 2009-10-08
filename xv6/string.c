@@ -1,11 +1,11 @@
 #include "types.h"
-#include "defs.h"
 
 void*
 memset(void *dst, int c, uint n)
 {
-  char *d = (char*) dst;
+  char *d;
 
+  d = (char*)dst;
   while(n-- > 0)
     *d++ = c;
 
@@ -15,12 +15,13 @@ memset(void *dst, int c, uint n)
 int
 memcmp(const void *v1, const void *v2, uint n)
 {
-  const uchar *s1 = (const uchar*) v1;
-  const uchar *s2 = (const uchar*) v2;
-
-  while(n-- > 0) {
+  const uchar *s1, *s2;
+  
+  s1 = v1;
+  s2 = v2;
+  while(n-- > 0){
     if(*s1 != *s2)
-      return (int) *s1 - (int) *s2;
+      return *s1 - *s2;
     s1++, s2++;
   }
 
@@ -35,7 +36,7 @@ memmove(void *dst, const void *src, uint n)
 
   s = src;
   d = dst;
-  if(s < d && s + n > d) {
+  if(s < d && s + n > d){
     s += n;
     d += n;
     while(n-- > 0)
@@ -54,6 +55,44 @@ strncmp(const char *p, const char *q, uint n)
     n--, p++, q++;
   if(n == 0)
     return 0;
-  else
-    return (int) ((uchar) *p - (uchar) *q);
+  return (uchar)*p - (uchar)*q;
 }
+
+char*
+strncpy(char *s, const char *t, int n)
+{
+  char *os;
+  
+  os = s;
+  while(n-- > 0 && (*s++ = *t++) != 0)
+    ;
+  while(n-- > 0)
+    *s++ = 0;
+  return os;
+}
+
+// Like strncpy but guaranteed to NUL-terminate.
+char*
+safestrcpy(char *s, const char *t, int n)
+{
+  char *os;
+  
+  os = s;
+  if(n <= 0)
+    return os;
+  while(--n > 0 && (*s++ = *t++) != 0)
+    ;
+  *s = 0;
+  return os;
+}
+
+int
+strlen(const char *s)
+{
+  int n;
+
+  for(n = 0; s[n]; n++)
+    ;
+  return n;
+}
+
