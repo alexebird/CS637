@@ -7,7 +7,7 @@
 #include "spinlock.h"
 #include "trace.h"
 
-#define MIN(x,y) (x < y ? x : y)
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
 
 struct spinlock proc_table_lock;
 
@@ -26,7 +26,7 @@ typedef struct __trace_frame{
   int quantums;  // consecutive time slices the job was run in a row for.
 } trace_frame;
 
-int trace_status = TRACE_ON;
+int trace_status = TRACE_OFF;
 trace_frame trace[TRACE_SIZE];
 int trace_index = 0;
 
@@ -51,6 +51,7 @@ allocproc(void)
     if(p->state == UNUSED){
       p->state = EMBRYO;
       p->pid = nextpid++;
+      p->tickets = 100;
       release(&proc_table_lock);
       return p;
     }
@@ -218,6 +219,8 @@ scheduler(void)
   struct proc *p;
   struct cpu *c;
   int i;
+  int winner;
+  int tickets, total_tix;
   trace_frame *curr_trace_frm, *last_trace_frm;
 
   c = &cpus[cpu()];
@@ -225,18 +228,37 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
+    // Hold a lottery
+    // First find how many tickets there are in the system.
     acquire(&proc_table_lock);
+    total_tix = 0;
     for(i = 0; i < NPROC; i++){
       p = &proc[i];
-      if(p->state != RUNNABLE)
-        continue;
+      if(p->state == RUNNABLE)
+        total_tix += p->tickets;
+    }
+
+    //cprintf("total tickets: %d\n", total_tix);
+
+    if (total_tix != 0) {
+      // Get a random number between 0 and the number of tickets in the system.
+      winner = rand() % total_tix;
+      tickets = 0;
+      for(i = 0; i < NPROC; i++){
+        p = &proc[i];
+        if(p->state != RUNNABLE)
+          continue;
+
+        tickets += p->tickets;
+
+        if (winner < tickets)
+          break;
+      }
 
       // Switch to chosen process.  It is the process's job
       // to release proc_table_lock and then reacquire it
       // before jumping back to us.
 
-      //cprintf("current: %d\n", p->pid);
       c->curproc = p;
       setupsegs(p);
       p->state = RUNNING;
@@ -251,8 +273,7 @@ scheduler(void)
           trace_index++;
         }
         else if (last_trace_frm->pid == p->pid) {
-          curr_trace_frm = &trace[(trace_index - 1) % TRACE_SIZE];
-          curr_trace_frm->quantums++;
+          last_trace_frm->quantums++;
         }
       }
 
@@ -261,14 +282,14 @@ scheduler(void)
       c->curproc = 0;
       setupsegs(0);
     }
-    release(&proc_table_lock);
 
+    release(&proc_table_lock);
   }
 }
 
 // Enter scheduler.  Must already hold proc_table_lock
 // and have changed curproc[cpu()]->state.
-void
+  void
 sched(void)
 {
   if(read_eflags()&FL_IF)
@@ -501,7 +522,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    cprintf("%d %s %s %d", p->pid, state, p->name, p->tickets);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context.ebp+2, pc);
       for(j=0; j<10 && pc[j] != 0; j++)

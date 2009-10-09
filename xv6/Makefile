@@ -24,6 +24,7 @@ OBJS = \
 	trapasm.o\
 	trap.o\
 	vectors.o\
+	random.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 #TOOLPREFIX = i386-jos-elf-

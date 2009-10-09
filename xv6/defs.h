@@ -147,3 +147,5 @@ extern struct spinlock tickslock;
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
+// random.c
+int rand(void);
