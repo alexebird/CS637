@@ -5,7 +5,7 @@
 #include "proc.h"
 #include "trace.h"
 
-int trace_status;
+//int trace_status;
 
 int
 sys_fork(void)
@@ -82,6 +82,8 @@ sys_sleep(void)
   return 0;
 }
 
+int trace_status;
+
 int
 sys_schtrace()
 {
@@ -108,5 +110,22 @@ int
 sys_bird(void)
 {
   return 4;
+}
+
+int sys_ticks(void)
+{
+  return ticks;
+}
+
+// Lottery Scheduling syscalls
+
+int sys_settix(void)
+{
+
+}
+
+int sys_gettix(void)
+{
+
 }
 

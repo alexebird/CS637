@@ -26,7 +26,7 @@ typedef struct __trace_frame{
   int quantums;  // consecutive time slices the job was run in a row for.
 } trace_frame;
 
-int trace_status = TRACE_OFF;
+int trace_status = TRACE_ON;
 trace_frame trace[TRACE_SIZE];
 int trace_index = 0;
 

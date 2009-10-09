@@ -24,6 +24,8 @@ int sleep(int);
 int sleep(int);
 int bird(void);
 int schtrace(int);
+int sys_settix(int, int);
+int sys_gettix(int);
 
 // ulib.c
 int stat(char*, struct stat*);
