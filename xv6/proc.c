@@ -18,7 +18,7 @@ int nextpid = 1;
 extern void forkret(void);
 extern void forkret1(struct trapframe*);
 
-#define TRACE_SIZE (100)
+#define TRACE_SIZE (500)
 int trace_status = TRACE_OFF;
 int trace[TRACE_SIZE];
 int trace_index = 0;
