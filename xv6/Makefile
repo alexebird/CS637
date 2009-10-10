@@ -112,6 +112,7 @@ UPROGS=\
 	_bird\
 	_trace\
 	_schtest\
+	_tix\
 
 #_usertests\
 

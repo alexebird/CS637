@@ -121,11 +121,15 @@ int sys_ticks(void)
 
 int sys_settix(void)
 {
-
+  return 0;
 }
 
 int sys_gettix(void)
 {
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
 
+  return gettix(pid);
 }
 

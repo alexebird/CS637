@@ -495,6 +495,19 @@ wait(void)
   }
 }
 
+int gettix(int pid)
+{
+  struct proc *p;
+  int i;
+  for(i = 0; i < NPROC; i++){
+    p = &proc[i];
+    if (pid == p->pid)
+      return p->tickets;
+  }
+
+  return -1;
+}
+
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
@@ -514,6 +527,7 @@ procdump(void)
   char *state;
   uint pc[10];
   
+  cprintf("\n");
   for(i = 0; i < NPROC; i++){
     p = &proc[i];
     if(p->state == UNUSED)

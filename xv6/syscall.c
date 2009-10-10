@@ -126,8 +126,8 @@ static int (*syscalls[])(void) = {
 [SYS_bird]    sys_bird,
 [SYS_schtrace]   sys_schtrace,
 [SYS_ticks]   sys_ticks,
-[SYS_schtrace]   sys_settix,
-[SYS_schtrace]   sys_gettix
+[SYS_settix]   sys_settix,
+[SYS_gettix]   sys_gettix
 };
 
 void
