@@ -19,7 +19,7 @@ extern void forkret(void);
 extern void forkret1(struct trapframe*);
 
 // Variables for the scheduler tracing infrastructure.
-#define TRACE_SIZE (100)
+#define TRACE_SIZE (500)
 
 typedef struct __trace_frame{
   int pid;       // pid of the process that ran in the time slice.
