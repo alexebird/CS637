@@ -121,7 +121,15 @@ int sys_ticks(void)
 
 int sys_settix(void)
 {
-  return 0;
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+
+  int tickets;
+  if(argint(1, &tickets) < 0)
+    return -1;
+
+  return settix(pid, tickets);
 }
 
 int sys_gettix(void)

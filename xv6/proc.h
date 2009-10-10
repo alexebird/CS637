@@ -71,3 +71,8 @@ extern int ncpu;
 
 // Used for the scheduler tracing infrastructure.
 extern int trace_status;
+void schtracedump(void);
+
+// Lottery Scheduling functions
+int settix(int, int);
+int gettix(int);

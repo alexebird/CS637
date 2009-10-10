@@ -508,6 +508,21 @@ int gettix(int pid)
   return -1;
 }
 
+int settix(int pid, int tickets)
+{
+  struct proc *p;
+  int i;
+  for(i = 0; i < NPROC; i++){
+    p = &proc[i];
+    if (pid == p->pid) {
+      p->tickets = tickets;
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
