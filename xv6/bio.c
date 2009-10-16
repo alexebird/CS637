@@ -135,3 +135,24 @@ brelse(struct buf *b)
   release(&buf_table_lock);
 }
 
+
+int bcheck()
+{
+  struct buf *b;
+  acquire(&buf_table_lock);
+
+ loop:
+  // Try for cached block.
+  for(b = bufhead.next; b != &bufhead; b = b->next){
+    if((b->flags & (B_BUSY|B_VALID)) &&
+       b->dev == dev && b->sector == sector){
+      if(b->flags & B_BUSY){
+        sleep(buf, &buf_table_lock);
+        goto loop;
+      }
+      b->flags |= B_BUSY;
+      release(&buf_table_lock);
+      return b;
+    }
+  }
+}

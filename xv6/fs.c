@@ -617,3 +617,4 @@ nameiparent(char *path, char *name)
 {
   return _namei(path, 1, name);
 }
+

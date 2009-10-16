@@ -125,3 +125,17 @@ filewrite(struct file *f, char *addr, int n)
   panic("filewrite");
 }
 
+// Check to see if the block which offset is within is contained in the buffer cache.
+int filecheck(struct file *f, int offset)
+{
+  if(f->readable == 0 || f->type == FD_PIPE)
+    return -1;
+
+  if(f->type == FD_INODE){
+    ilock(f->ip);
+    int contains = checki(f->ip, offset);
+    iunlock(f->ip);
+    return contains;
+  }
+  panic("filecheck");
+}
