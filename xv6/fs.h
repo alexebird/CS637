@@ -5,10 +5,10 @@
 // Block 1 is super block.
 // Inodes start at block 2.
 
-//#define BSIZE 512    // block size
-//#define BSIZEL 512L  // Make sure this is the same as BSIZE
-#define BSIZE 1024    // block size
-#define BSIZEL 1024L  // Make sure this is the same as BSIZE
+#define BSIZE 512    // block size
+#define BSIZEL 512L  // Make sure this is the same as BSIZE
+//#define BSIZE 1024    // block size
+//#define BSIZEL 1024L  // Make sure this is the same as BSIZE
 
 // File system super block
 struct superblock {

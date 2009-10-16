@@ -14,7 +14,7 @@
 //int nblocks = 995;  // number of data blocks
 //int ninodes = 200;  // number of inodes
 //int size = 1024;    // Size of file system image (blocks)
-int nblocks = 4067;  // number of data blocks
+int nblocks = 4041;  // number of data blocks
 int ninodes = 400;   // number of inodes
 int size = 4096;     // Size of file system image (blocks)
 
@@ -241,7 +241,7 @@ balloc(int used)
   int i;
 
   printf("balloc: first %d blocks have been allocated\n", used);
-  assert(used < BSIZE);
+  //assert(used < BSIZE);
   bzero(buf, BSIZE);
   for(i = 0; i < used; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
