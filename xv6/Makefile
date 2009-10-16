@@ -111,8 +111,7 @@ UPROGS=\
 	_bird\
 	_trace\
 	_schtest\
-
-#_usertests\
+  _usertests\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

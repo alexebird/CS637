@@ -11,23 +11,26 @@
 #include "types.h"
 #include "fs.h"
 
-int nblocks = 995;
-int ninodes = 200;
-int size = 1024;
+//int nblocks = 995;  // number of data blocks
+//int ninodes = 200;  // number of inodes
+//int size = 1024;    // Size of file system image (blocks)
+int nblocks = 4067;  // number of data blocks
+int ninodes = 400;   // number of inodes
+int size = 4096;     // Size of file system image (blocks)
 
 int fsfd;             // fd to image being written to.
-struct superblock sb;
-char zeroes[BSIZE];
-uint freeblock;
-uint usedblocks;
-uint bitblocks;
+struct superblock sb; // the superblock (duh)
+char zeroes[BSIZE];   // ?
+uint freeblock;       // the next free block?
+uint usedblocks;      // # blocks that have been used up.
+uint bitblocks;       // The number of blocks used as in-use bitmap blocks.
 uint freeinode = 1;
 
 void balloc(int);                          // alloc block?
-void wsect(uint, void*);
-void winode(uint, struct dinode*);
-void rinode(uint inum, struct dinode *ip);
-void rsect(uint sec, void *buf);
+void wsect(uint, void*);                   // write sector?
+void winode(uint, struct dinode*);         // write inode?
+void rinode(uint inum, struct dinode *ip); // read inode?
+void rsect(uint sec, void *buf);           // read sector?
 uint ialloc(ushort type);                  // alloc inode?
 void iappend(uint inum, void *p, int n);   // append inode?
 
@@ -68,9 +71,12 @@ main(int argc, char *argv[])
     exit(1);
   }
 
+  // A whole number of dir entries must fit in a block,
+  // A whole number of inodes must fit in a block.
   assert((BSIZE % sizeof(struct dinode)) == 0);
   assert((BSIZE % sizeof(struct dirent)) == 0);
 
+  // create the file we using to create the FS image.
   fsfd = open(argv[1], O_RDWR|O_CREAT|O_TRUNC, 0666);
   if(fsfd < 0){
     perror(argv[1]);
@@ -82,13 +88,19 @@ main(int argc, char *argv[])
   sb.nblocks = xint(nblocks); // so whole disk is size sectors
   sb.ninodes = xint(ninodes);
 
+  // 8 is used so that we map a byte in the bitmap to each block, not an actual bit.
   bitblocks = size/(BSIZE*8) + 1;
+  // #inodes / inodes_per_block + 1 + 2 + bitblocks
+  // the 2 for the unused first block and the second block for the superblock.
+  // the 1 makes up for integer division.
   usedblocks = ninodes / IPB + 3 + bitblocks;
   freeblock = usedblocks;
 
   printf("used %d (bit %d ninode %lu) free %u total %d\n", usedblocks,
          bitblocks, ninodes/IPB + 1, freeblock, nblocks+usedblocks);
 
+  // number of data blocks + number of blocks we need for inodes, bitmaps, the
+  // superblock, and the empty block must equal total blocks.
   assert(nblocks + usedblocks == size);
 
   for(i = 0; i < nblocks + usedblocks; i++)
