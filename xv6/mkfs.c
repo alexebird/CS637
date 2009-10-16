@@ -1,3 +1,7 @@
+/*
+ * Create a filesystem image that xv6 can use.
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -11,7 +15,7 @@ int nblocks = 995;
 int ninodes = 200;
 int size = 1024;
 
-int fsfd;
+int fsfd;             // fd to image being written to.
 struct superblock sb;
 char zeroes[512];
 uint freeblock;
@@ -19,13 +23,13 @@ uint usedblocks;
 uint bitblocks;
 uint freeinode = 1;
 
-void balloc(int);
+void balloc(int);                          // alloc block?
 void wsect(uint, void*);
 void winode(uint, struct dinode*);
 void rinode(uint inum, struct dinode *ip);
 void rsect(uint sec, void *buf);
-uint ialloc(ushort type);
-void iappend(uint inum, void *p, int n);
+uint ialloc(ushort type);                  // alloc inode?
+void iappend(uint inum, void *p, int n);   // append inode?
 
 // convert to intel byte order
 ushort
@@ -73,6 +77,7 @@ main(int argc, char *argv[])
     exit(1);
   }
 
+  // Setup the superblock.
   sb.size = xint(size);
   sb.nblocks = xint(nblocks); // so whole disk is size sectors
   sb.ninodes = xint(ninodes);
