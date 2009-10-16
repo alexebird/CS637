@@ -26,13 +26,13 @@ uint usedblocks;      // # blocks that have been used up.
 uint bitblocks;       // The number of blocks used as in-use bitmap blocks.
 uint freeinode = 1;
 
-void balloc(int);                          // alloc block?
-void wsect(uint, void*);                   // write sector?
-void winode(uint, struct dinode*);         // write inode?
-void rinode(uint inum, struct dinode *ip); // read inode?
-void rsect(uint sec, void *buf);           // read sector?
-uint ialloc(ushort type);                  // alloc inode?
-void iappend(uint inum, void *p, int n);   // append inode?
+void balloc(int);                          // alloc block
+void wsect(uint, void*);                   // write sector
+void winode(uint, struct dinode*);         // write inode
+void rinode(uint inum, struct dinode *ip); // read inode
+void rsect(uint sec, void *buf);           // read sector
+uint ialloc(ushort type);                  // alloc inode
+void iappend(uint inum, void *p, int n);   // append inode
 
 // convert to intel byte order
 ushort
