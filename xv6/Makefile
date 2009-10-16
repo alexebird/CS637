@@ -111,6 +111,7 @@ UPROGS=\
 	_bird\
 	_trace\
 	_schtest\
+  _checktest
 
 #_usertests\
 

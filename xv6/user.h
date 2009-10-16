@@ -21,10 +21,10 @@ int dup(int);
 int getpid();
 char* sbrk(int);
 int sleep(int);
-int sleep(int);
 int bird(void);
 int schtrace(int);
 int ticks(void);
+int check(int, int);
 
 // ulib.c
 int stat(char*, struct stat*);

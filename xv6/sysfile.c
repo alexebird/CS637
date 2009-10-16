@@ -392,3 +392,9 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+int sys_check(void)
+{
+  // args: int fd, int offset
+  return 0;
+}

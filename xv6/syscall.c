@@ -99,6 +99,7 @@ extern int sys_write(void);
 extern int sys_bird(void);
 extern int sys_schtrace(void);
 extern int sys_ticks(void);
+extern int sys_check(void);
 
 static int (*syscalls[])(void) = {
 [SYS_chdir]   sys_chdir,

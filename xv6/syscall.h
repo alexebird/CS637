@@ -22,3 +22,4 @@
 #define SYS_bird   20
 #define SYS_schtrace 21
 #define SYS_ticks  22
+#define SYS_check  23
