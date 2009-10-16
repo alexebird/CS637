@@ -124,7 +124,8 @@ static int (*syscalls[])(void) = {
 [SYS_write]   sys_write,
 [SYS_bird]    sys_bird,
 [SYS_schtrace] sys_schtrace,
-[SYS_ticks]   sys_ticks
+[SYS_ticks]   sys_ticks,
+[SYS_check]   sys_check
 };
 
 void
