@@ -21,6 +21,5 @@
 #define SYS_sleep  20
 #define SYS_bird   20
 #define SYS_schtrace 21
-#define SYS_ticks  22
-#define SYS_settix 23
-#define SYS_gettix 24
+#define SYS_settix 22
+#define SYS_gettix 23
