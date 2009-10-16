@@ -98,6 +98,7 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_bird(void);
 extern int sys_schtrace(void);
+extern int sys_ticks(void);
 
 static int (*syscalls[])(void) = {
 [SYS_chdir]   sys_chdir,
@@ -121,7 +122,8 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_bird]    sys_bird,
-[SYS_schtrace]   sys_schtrace
+[SYS_schtrace] sys_schtrace,
+[SYS_ticks]   sys_ticks
 };
 
 void

@@ -110,3 +110,8 @@ sys_bird(void)
   return 4;
 }
 
+int sys_ticks(void)
+{
+  return ticks;
+}
+
