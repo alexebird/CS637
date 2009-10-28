@@ -129,7 +129,7 @@ filewrite(struct file *f, char *addr, int n)
 int filecheck(struct file *f, int offset)
 {
   if(f->readable == 0 || f->type == FD_PIPE)
-    return -1;
+    return 0;
 
   if(f->type == FD_INODE){
     ilock(f->ip);

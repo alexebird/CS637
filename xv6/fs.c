@@ -618,3 +618,13 @@ nameiparent(char *path, char *name)
   return _namei(path, 1, name);
 }
 
+// Check to see if the block at off is in the buffer cache.
+int
+checki(struct inode *ip, uint off)
+{
+  // Make sure the offset is not past the end of the file.
+  if(off > ip->size)
+    return 0;
+
+  return bcheck(ip->dev, bmap(ip, off/BSIZE, 0));
+}

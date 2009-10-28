@@ -135,14 +135,14 @@ brelse(struct buf *b)
   release(&buf_table_lock);
 }
 
-
-int bcheck()
+// Check if there is a block with the specified device and sector in the BC.
+int bcheck(uint dev, uint sector)
 {
   struct buf *b;
   acquire(&buf_table_lock);
 
  loop:
-  // Try for cached block.
+  // Look for cached block.
   for(b = bufhead.next; b != &bufhead; b = b->next){
     if((b->flags & (B_BUSY|B_VALID)) &&
        b->dev == dev && b->sector == sector){
@@ -150,9 +150,10 @@ int bcheck()
         sleep(buf, &buf_table_lock);
         goto loop;
       }
-      b->flags |= B_BUSY;
       release(&buf_table_lock);
-      return b;
+      return 1;
     }
   }
+
+  return 0;
 }
