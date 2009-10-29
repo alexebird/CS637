@@ -155,5 +155,6 @@ int bcheck(uint dev, uint sector)
     }
   }
 
+  release(&buf_table_lock);
   return 0;
 }
