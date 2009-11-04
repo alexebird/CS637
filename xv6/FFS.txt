@@ -1,0 +1,19 @@
+Layout
+
+SCCCCCCCC
+
+main superblock followed by 8 cylinder groups
+
+Within a cylinder group
+
+HidIIIDDDDDDDDDDDDDDDDDD
+
+H = cylinder group header
+i,d = bitmaps
+Inode blocks and Data blocks.
+
+Block size = 1024,2048,4096...user settable
+
+bytes-per-inode = 2 * block_size, i.e. one inode for every 2 blocks.
+
+FS image size = 1000 blocks
