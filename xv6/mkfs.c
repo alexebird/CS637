@@ -11,9 +11,20 @@
 #include "types.h"
 #include "fs.h"
 
-int nblocks = 995;
-int ninodes = 200;
-int size = 1024;
+int size = 1600; // total blocks.
+int blocks_per_grp = size / NUM_CYLINDER_GRPS;
+int bytes_per_inode = BSIZE * 2;  // 2 just a heuristic for inode blocks to data blocks ratio.
+int bytes_per_group = blocks_per_grp * BSIZE;
+int inodes_per_group = bytes_per_group / bytes_per_inode;
+int inodes_per_block = IPB;
+int inode_blocks_per_group = inodes_per_group / inodes_per_block + 1; // 1 makes up for integer division;
+int bitmap_blocks = blocks_per_grp / BSIZE + 1;                       // same ^
+int data_blocks = blocks_per_grp - inode_blocks_per_group - bitmap_blocks - 1; // 1 is for superblock.
+
+// need to create the fs image, then set the metadata for each block group.
+// how to seek to a group?
+// since inode numbers are sequential, how to we find the group that a
+// given inode is in?
 
 int fsfd;             // fd to image being written to.
 struct superblock sb;
@@ -91,9 +102,11 @@ main(int argc, char *argv[])
 
   assert(nblocks + usedblocks == size);
 
+  // Write out the whole disk image file.  Initially all zeros.
   for(i = 0; i < nblocks + usedblocks; i++)
     wsect(i, zeroes);
 
+  // Write out the superblock.
   wsect(1, &sb);
 
   rootino = ialloc(T_DIR);
