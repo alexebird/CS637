@@ -1,4 +1,4 @@
-// On-disk file system format. 
+// On-disk fast file system format. 
 // Both the kernel and user programs use this header file.
 
 // Block 0 is unused.
@@ -55,5 +55,5 @@ struct dirent {
 };
 
 struct cylinder_group {
-  uint group_num;
+  struct superblock sb_copy;
 };
