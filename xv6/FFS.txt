@@ -26,7 +26,7 @@ bytes per inode = 512 * 2 = 1024 bytes
 bytes per group = 200 * 512 = 102400 bytes
 inodes per group = 102400/1024 = 100
 inodes per block = 512 / 64 = 8
-inode blocks per group = 100 / 8 = 12.5 -> 12
+inode blocks per group = 100 / 8 = 12.5 -> 13
 for 200 blocks, need one superblock
 need 200 / 512 + 1 = 1 blocks for bitmaps
-200 - 12 - 1 - 1 = 186 data blocks per group
+200 - 13 - 1 - 1 = 186 data blocks per group

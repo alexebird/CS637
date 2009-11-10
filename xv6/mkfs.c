@@ -5,17 +5,15 @@
 #include <fcntl.h>
 #include <assert.h>
 #include "types.h"
-#include "fss.h"
+#include "fs.h"
 
 int size = 1600; // total blocks.
-int blocks_per_grp = size / NUM_CYLINDER_GRPS;
-int bytes_per_inode = BSIZE * 2;  // 2 just a heuristic for inode blocks to data blocks ratio.
-int bytes_per_group = blocks_per_grp * BSIZE;
-int inodes_per_group = bytes_per_group / bytes_per_inode;
-int inodes_per_block = IPB;
-int inode_blocks_per_group = inodes_per_group / inodes_per_block + 1; // 1 makes up for integer division;
-int bitmap_blocks = blocks_per_grp / BSIZE + 1;                       // same ^
-int data_blocks = blocks_per_grp - inode_blocks_per_group - bitmap_blocks - 1; // 1 is for superblock.
+int blocks_per_group = size / NUM_CYLINDER_GRPS; // unless specified, a 1 makes up for integer division;
+int inodes_per_group = blocks_per_group / 2 + 1;  // 2 is heuristic; datablock to inode ratio is 2.
+int ibitmap_blocks = inodes_per_group / BSIZE + 1;
+int dbitmap_blocks = blocks_per_group / BSIZE + 1;
+int inode_blocks_per_group = inodes_per_group / IPB + 1;
+int data_blocks = blocks_per_group - inode_blocks_per_group - ibitmap_blocks - dbitmap_blocks - 1; // 1 is for superblock.
 
 // need to create the fs image, then set the metadata for each block group.
 // how to seek to a group?
@@ -71,12 +69,14 @@ main(int argc, char *argv[])
   struct dinode din;
 
   if(argc < 2){
-    fprintf(stderr, "Usage: mkfs.ffs fs.img files...\n");
+    fprintf(stderr, "Usage: mkfs fs.img files...\n");
     exit(1);
   }
 
   assert((512 % sizeof(struct dinode)) == 0);
   assert((512 % sizeof(struct dirent)) == 0);
+  // Make sure the total disk size can be evenly split by cylinder groups.
+	assert(size % NUM_CYLINDER_GRPS == 0);
 
   fsfd = open(argv[1], O_RDWR|O_CREAT|O_TRUNC, 0666);
   if(fsfd < 0){
