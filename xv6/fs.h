@@ -44,7 +44,7 @@ struct dinode {
 // Bitmap bits per block
 #define BPB           (BSIZE*8)
 
-// Block containing bit for block b
+// Bitmap Block containing the bit for block b
 #define BBLOCK(b, ninodes) (b/BPB + (ninodes)/IPB + 3)
 
 // Directory is a file containing a sequence of dirent structures.
