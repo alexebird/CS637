@@ -18,7 +18,7 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "buf.h"
-#include "ffs.h"
+#include "fs.h"
 #include "fsvar.h"
 #include "dev.h"
 
