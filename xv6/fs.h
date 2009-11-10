@@ -1,4 +1,4 @@
-// On-disk file system format. 
+// On-disk fast file system format. 
 // Both the kernel and user programs use this header file.
 
 // Block 0 is unused.
@@ -6,12 +6,12 @@
 // Inodes start at block 2.
 
 #define BSIZE 512  // block size
+#define NUM_CYLINDER_GRPS 8
 
 // File system super block
 struct superblock {
   uint size;         // Size of file system image (blocks)
-  uint nblocks;      // Number of data blocks
-  uint ninodes;      // Number of inodes.
+  struct cylinder_group c_groups[NUM_CYLINDER_GRPS];
 };
 
 #define NADDRS (NDIRECT+1)
@@ -52,5 +52,11 @@ struct dinode {
 struct dirent {
   ushort inum;
   char name[DIRSIZ];
+};
+
+struct cylinder_group {
+  uint group_num;
+  uint nblocks;      // Number of data blocks
+  uint ninodes;      // Number of inodes.
 };
 

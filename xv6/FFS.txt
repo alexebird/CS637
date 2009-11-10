@@ -6,7 +6,8 @@ main superblock followed by 8 cylinder groups
 
 Within a cylinder group
 
-HidIIIDDDDDDDDDDDDDDDDDD
+now: ESdIIIDDDDDDDDDDDDDDDDDD
+SidIIIDDDDDDDDDDDDDDDDDD
 
 H = cylinder group header
 i,d = bitmaps

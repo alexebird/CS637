@@ -5,11 +5,22 @@
 #include <fcntl.h>
 #include <assert.h>
 #include "types.h"
-#include "fs.h"
+#include "fss.h"
 
-int nblocks = 995;
-int ninodes = 200;
-int size = 1024;
+int size = 1600; // total blocks.
+int blocks_per_grp = size / NUM_CYLINDER_GRPS;
+int bytes_per_inode = BSIZE * 2;  // 2 just a heuristic for inode blocks to data blocks ratio.
+int bytes_per_group = blocks_per_grp * BSIZE;
+int inodes_per_group = bytes_per_group / bytes_per_inode;
+int inodes_per_block = IPB;
+int inode_blocks_per_group = inodes_per_group / inodes_per_block + 1; // 1 makes up for integer division;
+int bitmap_blocks = blocks_per_grp / BSIZE + 1;                       // same ^
+int data_blocks = blocks_per_grp - inode_blocks_per_group - bitmap_blocks - 1; // 1 is for superblock.
+
+// need to create the fs image, then set the metadata for each block group.
+// how to seek to a group?
+// since inode numbers are sequential, how to we find the group that a
+// given inode is in?
 
 int fsfd;
 struct superblock sb;
@@ -60,7 +71,7 @@ main(int argc, char *argv[])
   struct dinode din;
 
   if(argc < 2){
-    fprintf(stderr, "Usage: mkfs fs.img files...\n");
+    fprintf(stderr, "Usage: mkfs.ffs fs.img files...\n");
     exit(1);
   }
 
@@ -86,9 +97,11 @@ main(int argc, char *argv[])
 
   assert(nblocks + usedblocks == size);
 
+  // Write out the whole disk image file.  Initially all zeros.
   for(i = 0; i < nblocks + usedblocks; i++)
     wsect(i, zeroes);
 
+  // Write out the superblock.
   wsect(1, &sb);
 
   rootino = ialloc(T_DIR);
@@ -144,6 +157,9 @@ main(int argc, char *argv[])
   exit(0);
 }
 
+/*
+ * write sector.
+ */
 void
 wsect(uint sec, void *buf)
 {
@@ -157,12 +173,18 @@ wsect(uint sec, void *buf)
   }
 }
 
+/*
+ * inode num to block num.
+ */
 uint
 i2b(uint inum)
 {
   return (inum / IPB) + 2;
 }
 
+/*
+ * Write inode.
+ */
 void
 winode(uint inum, struct dinode *ip)
 {
@@ -177,6 +199,9 @@ winode(uint inum, struct dinode *ip)
   wsect(bn, buf);
 }
 
+/*
+ * Read inode.
+ */
 void
 rinode(uint inum, struct dinode *ip)
 {
@@ -190,6 +215,9 @@ rinode(uint inum, struct dinode *ip)
   *ip = *dip;
 }
 
+/*
+ * Read sector.
+ */
 void
 rsect(uint sec, void *buf)
 {
@@ -203,6 +231,9 @@ rsect(uint sec, void *buf)
   }
 }
 
+/*
+ * alloc inode.
+ */
 uint
 ialloc(ushort type)
 {
@@ -217,6 +248,9 @@ ialloc(ushort type)
   return inum;
 }
 
+/*
+ * alloc block.
+ */
 void
 balloc(int used)
 {
@@ -235,6 +269,12 @@ balloc(int used)
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+/*
+ * append inode.
+ * inode number,
+ * data buffer,
+ * buffer length.
+ */
 void
 iappend(uint inum, void *xp, int n)
 {
