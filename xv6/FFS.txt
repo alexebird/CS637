@@ -12,8 +12,20 @@ H = cylinder group header
 i,d = bitmaps
 Inode blocks and Data blocks.
 
-Block size = 1024,2048,4096...user settable
+================
 
-bytes-per-inode = 2 * block_size, i.e. one inode for every 2 blocks.
+given FS image size, create 8 cylinder groups, each initially a clone of the
+other, aside from group number.  each cylinder group should have 2*block_size
+bytes per inode.  Based on this, determine the number of data blocks.
 
-FS image size = 1000 blocks
+total size = 1600 blocks
+1600/8 = 200 blocks per group
+block size = 512
+bytes per inode = 512 * 2 = 1024 bytes
+bytes per group = 200 * 512 = 102400 bytes
+inodes per group = 102400/1024 = 100
+inodes per block = 512 / 64 = 8
+inode blocks per group = 100 / 8 = 12.5 -> 12
+for 200 blocks, need one superblock
+need 200 / 512 + 1 = 1 blocks for bitmaps
+200 - 12 - 1 - 1 = 186 data blocks per group
