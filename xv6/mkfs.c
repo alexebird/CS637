@@ -7,19 +7,23 @@
 #include "types.h"
 #include "fs.h"
 
-int nblocks = 995;
+int nblocks = 994;
 int ninodes = 200;
 int size = 1024;
+//FFS
+int groups = 8;
+//FFS
 
 int fsfd;
 struct superblock sb;
 char zeroes[512];
 uint freeblock;
 uint usedblocks;
-uint bitblocks;
+uint ibitblocks;
+uint dbitblocks;
 uint freeinode = 1;
 
-void balloc(int);
+void balloc();
 void wsect(uint, void*);
 void winode(uint, struct dinode*);
 void rinode(uint inum, struct dinode *ip);
@@ -77,35 +81,44 @@ main(int argc, char *argv[])
   sb.nblocks = xint(nblocks); // so whole disk is size sectors
   sb.ninodes = xint(ninodes);
 
-  bitblocks = size/(512*8) + 1;
-  usedblocks = ninodes / IPB + 3 + bitblocks;
+  //SETUP BITMAP SIZES
+  ibitblocks = ninodes / (BSIZE * 8) + 1;
+  dbitblocks = nblocks / (BSIZE * 8) + 1;
+  usedblocks = ninodes / IPB + 3 + dbitblocks + ibitblocks;
   freeblock = usedblocks;
 
-  printf("used %d (bit %d ninode %lu) free %u total %d\n", usedblocks,
-         bitblocks, ninodes/IPB + 1, freeblock, nblocks+usedblocks);
-
+  printf("used %d (dbit %d ibit %d ninode %lu) free %u total %d\n", usedblocks, dbitblocks, ibitblocks, ninodes/IPB + 1, freeblock, nblocks+usedblocks);
+  printf("nblocks: %d, usedblocks: %d, size %d\n",nblocks,usedblocks,size);
   assert(nblocks + usedblocks == size);
 
+  //ZERO DISK
   for(i = 0; i < nblocks + usedblocks; i++)
     wsect(i, zeroes);
 
+
+  //WRITE SUPER BLOCK TO DISK
   wsect(1, &sb);
 
+  //ALLOCATE ROOT INODE, (WRITES TO DISK)
   rootino = ialloc(T_DIR);
   assert(rootino == 1);
 
+  //ADDS DIRECTORY "." TO ROOT INODE
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, ".");
   iappend(rootino, &de, sizeof(de));
 
+  //ADDS DIRECTORY ".." TO ROOT INODE
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, "..");
   iappend(rootino, &de, sizeof(de));
 
+
+  //LOOP THROUGH COMMAND LINE FINDING FILES TO ADD TO FS
   for(i = 2; i < argc; i++){
-    assert(index(argv[i], '/') == 0);
+    assert(index(argv[i], '/') == 0);  //ensures / does not exist in file name
 
     if((fd = open(argv[i], 0)) < 0){
       perror(argv[i]);
@@ -116,16 +129,18 @@ main(int argc, char *argv[])
     // The binaries are named _rm, _cat, etc. to keep the
     // build operating system from trying to execute them
     // in place of system binaries like rm and cat.
-    if(argv[i][0] == '_')
+    if(argv[i][0] == '_')            //removes _ from start of file name
       ++argv[i];
 
-    inum = ialloc(T_FILE);
-
+    //ALLOC NEXT INODE FOR USER FILES
+    inum = ialloc(T_FILE);           
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, argv[i], DIRSIZ);
-    iappend(rootino, &de, sizeof(de));
+    //ADD USER FILE NAME TO ROOT DIRECTORY
+    iappend(rootino, &de, sizeof(de)); 
 
+    //COPY USER DATA INTO DATA BLOCk
     while((cc = read(fd, buf, sizeof(buf))) > 0)
       iappend(inum, buf, cc);
 
@@ -139,7 +154,8 @@ main(int argc, char *argv[])
   din.size = xint(off);
   winode(rootino, &din);
 
-  balloc(usedblocks);
+  //WRITE OUT THE INODE AND DATA BITMAPS
+  balloc();
 
   exit(0);
 }
@@ -160,7 +176,7 @@ wsect(uint sec, void *buf)
 uint
 i2b(uint inum)
 {
-  return (inum / IPB) + 2;
+  return (inum / IPB) + 2 + ibitblocks + dbitblocks;    //+2 comes from Empty block + super block (start writing at location 2)
 }
 
 void
@@ -217,20 +233,29 @@ ialloc(ushort type)
   return inum;
 }
 
+//FUNCTION WILL FILL IN THE INODE BITMAP AND THE DATA BITMAP
 void
-balloc(int used)
+balloc()
 {
   uchar buf[512];
   int i;
 
-  printf("balloc: first %d blocks have been allocated\n", used);
-  assert(used < 512);
+  //assert(used < 512);  // there is only one bitmap block, so cant have more than 512 blocks.
+  
+  int datablocks = freeblock - (ibitblocks + dbitblocks + (ninodes / IPB) + 3);
+  //WRITE OUT DATA BITMAP
   bzero(buf, 512);
-  for(i = 0; i < used; i++) {
+  for(i = 0; i < datablocks; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
-  printf("balloc: write bitmap block at sector %lu\n", ninodes/IPB + 3);
-  wsect(ninodes / IPB + 3, buf);
+  wsect(3, buf);
+
+  //WRITE OUT INODE BITMAP
+  bzero(buf, 512);
+  for(i=0; i < freeinode; i++) {
+    buf[i/8] = buf[i/8] | (0x1 << (i%8));
+  }
+  wsect(2, buf);
 }
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -239,6 +264,8 @@ void
 iappend(uint inum, void *xp, int n)
 {
   char *p = (char*) xp;
+  //fbn - data block of the end of the file before we write to it.
+  //off - current file size.
   uint fbn, off, n1;
   struct dinode din;
   char buf[512];
@@ -251,6 +278,8 @@ iappend(uint inum, void *xp, int n)
   while(n > 0){
     fbn = off / 512;
     assert(fbn < MAXFILE);
+    
+    //FILE FITS INTO DIRECT BLOCKS
     if(fbn < NDIRECT) {
       if(xint(din.addrs[fbn]) == 0) {
         din.addrs[fbn] = xint(freeblock++);
@@ -258,6 +287,8 @@ iappend(uint inum, void *xp, int n)
       }
       x = xint(din.addrs[fbn]);
     } else {
+      
+      //NEED TO ALLOCATE INDIRECT BLOCK
       if(xint(din.addrs[INDIRECT]) == 0) {
         // printf("allocate indirect block\n");
         din.addrs[INDIRECT] = xint(freeblock++);
@@ -265,6 +296,8 @@ iappend(uint inum, void *xp, int n)
       }
       // printf("read indirect block\n");
       rsect(xint(din.addrs[INDIRECT]), (char*) indirect);
+      
+      //NEED TO ALLOCATE NEW ENTRY IN INDIRECT BLOCK
       if(indirect[fbn - NDIRECT] == 0) {
         indirect[fbn - NDIRECT] = xint(freeblock++);
         usedblocks++;

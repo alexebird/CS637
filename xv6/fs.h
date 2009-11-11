@@ -6,6 +6,7 @@
 // Inodes start at block 2.
 
 #define BSIZE 512  // block size
+#define NUM_CYLINDER_GRPS 8
 
 // File system super block
 struct superblock {
@@ -43,7 +44,7 @@ struct dinode {
 // Bitmap bits per block
 #define BPB           (BSIZE*8)
 
-// Block containing bit for block b
+// Bitmap Block containing the bit for block b
 #define BBLOCK(b, ninodes) (b/BPB + (ninodes)/IPB + 3)
 
 // Directory is a file containing a sequence of dirent structures.
