@@ -51,8 +51,6 @@ bzero(int dev, int bno)
 // Blocks. 
 
 // Allocate a disk block.
-// TODO - perhaps we should add a param to tell balloc which cyl-grp to look
-// in for a block.
 static uint
 balloc(uint dev)
 {
@@ -62,21 +60,15 @@ balloc(uint dev)
 
   bp = 0;
   readsb(dev, &sb);
-  // for each data bitmap block. (512 blocks at a time until size)
   for(b = 0; b < sb.size; b += BPB){
-    // need to chance BBLOCK to find new dbitmap block.
     bp = bread(dev, BBLOCK(b, sb.ninodes));
-    // for every bit in that bitmap (512 total)
     for(bi = 0; bi < BPB; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use on disk.
         bwrite(bp);
         brelse(bp);
-        return b + bi;    //Returns data block number
-                          //original implementation is actual block number
-                          //in our implementation this should be the DATA block
-                          //number
+        return b + bi;
       }
     }
     brelse(bp);
@@ -85,7 +77,6 @@ balloc(uint dev)
 }
 
 // Free a disk block.
-// maybe?
 static void
 bfree(int dev, uint b)
 {
@@ -93,10 +84,8 @@ bfree(int dev, uint b)
   struct superblock sb;
   int bi, m;
 
-  //ZERO BLOCK b ON DEVICE dev
   bzero(dev, b);
 
-  //SET DATABLOCK TO UNUSED IN DATA BITMAP
   readsb(dev, &sb);
   bp = bread(dev, BBLOCK(b, sb.ninodes));
   bi = b % BPB;

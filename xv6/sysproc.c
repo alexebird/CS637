@@ -3,9 +3,6 @@
 #include "param.h"
 #include "mmu.h"
 #include "proc.h"
-#include "trace.h"
-
-int trace_status;
 
 int
 sys_fork(void)
@@ -81,37 +78,3 @@ sys_sleep(void)
   release(&tickslock);
   return 0;
 }
-
-int
-sys_schtrace()
-{
-  int cmd;
-  if(argint(0, &cmd) < 0)
-    return -1;
-
-  switch (cmd) {
-    case TRACE_ON:
-      trace_status = TRACE_ON;
-      return 0;
-    case TRACE_OFF:
-      trace_status = TRACE_OFF;
-      return 0;
-    case TRACE_STATUS:
-      schtracedump();
-      return trace_status;
-    default:
-      return -1;
-  }
-}
-
-int
-sys_bird(void)
-{
-  return 4;
-}
-
-int sys_ticks(void)
-{
-  return ticks;
-}
-

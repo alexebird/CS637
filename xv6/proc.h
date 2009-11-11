@@ -67,6 +67,3 @@ extern int ncpu;
 // "cp" is a short alias for curproc().
 // It gets used enough to make this worthwhile.
 #define cp curproc()
-
-// Used for the scheduler tracing infrastructure.
-extern int trace_status;
