@@ -63,7 +63,7 @@ balloc(uint dev)
   bp = 0;
   readsb(dev, &sb);
   // for each data bitmap block. (512 blocks at a time until size)
-  for(b = 0; b < sb.size; b += BPB){
+  for(b = 0; b < sb.nblocks; b += BPB){
     // need to chance BBLOCK to find new dbitmap block.
     bp = bread(dev, BBLOCK(b));
     // for every bit in that bitmap (512 total)
@@ -98,7 +98,7 @@ bfree(int dev, uint b)
 
   //SET DATABLOCK TO UNUSED IN DATA BITMAP
   readsb(dev, &sb);
-  bp = bread(dev, BBLOCK(b, sb.ninodes));
+  bp = bread(dev, BBLOCK(b));
   bi = b % BPB;
   m = 1 << (bi % 8);
   if((bp->data[bi/8] & m) == 0)
@@ -277,21 +277,56 @@ iunlockput(struct inode *ip)
 struct inode*
 ialloc(uint dev, short type)
 {
-  int inum;
+  //int inum;
+  //struct buf *bp;
+  //struct dinode *dip;
+  //struct superblock sb;
+
+  //readsb(dev, &sb);
+  //for(inum = 1; inum < sb.ninodes; inum++){  // loop over inode blocks
+    //bp = bread(dev, IBLOCK(inum));
+    //dip = (struct dinode*)bp->data + inum%IPB;
+    //if(dip->type == 0){  // a free inode
+      //memset(dip, 0, sizeof(*dip));
+      //dip->type = type;
+      //bwrite(bp);   // mark it allocated on the disk
+      //brelse(bp);
+      //return iget(dev, inum);
+    //}
+    //brelse(bp);
+  //}
+  //panic("ialloc: no inodes");
+
+  int b, bi, m;
   struct buf *bp;
   struct dinode *dip;
   struct superblock sb;
 
+  bp = 0;
   readsb(dev, &sb);
-  for(inum = 1; inum < sb.ninodes; inum++){  // loop over inode blocks
-    bp = bread(dev, IBLOCK(inum));
-    dip = (struct dinode*)bp->data + inum%IPB;
-    if(dip->type == 0){  // a free inode
-      memset(dip, 0, sizeof(*dip));
-      dip->type = type;
-      bwrite(bp);   // mark it allocated on the disk
-      brelse(bp);
-      return iget(dev, inum);
+  // for each inode bitmap block. (512 blocks at a time until size)
+  for(b = 0; b < sb.ninodes / IPB; b += BPB){
+    bp = bread(dev, IBBLOCK(b));
+    // for every bit in that bitmap (512 total)
+    for(bi = 0; bi < BPB; bi++){
+      m = 1 << (bi % 8);
+      if((bp->data[bi/8] & m) == 0){  // Is block free?
+        bp->data[bi/8] |= m;  // Mark block in use on disk.
+        bwrite(bp);
+        brelse(bp);
+
+        bp = bread(dev, IBLOCK(b + bi));
+		dip = (struct dinode*)bp->data + bi%IPB;
+        memset(dip, 0, sizeof(*dip));
+        dip->type = type;
+        bwrite(bp);
+        brelse(bp);
+		return iget(dev, b + bi);
+                          //Returns data block number
+                          //original implementation is actual block number
+                          //in our implementation this should be the DATA block
+                          //number
+      }
     }
     brelse(bp);
   }
