@@ -65,7 +65,7 @@ balloc(uint dev)
   // for each data bitmap block. (512 blocks at a time until size)
   for(b = 0; b < sb.size; b += BPB){
     // need to chance BBLOCK to find new dbitmap block.
-    bp = bread(dev, BBLOCK(b, sb.ninodes));
+    bp = bread(dev, BBLOCK(b));
     // for every bit in that bitmap (512 total)
     for(bi = 0; bi < BPB; bi++){
       m = 1 << (bi % 8);
