@@ -338,6 +338,16 @@ void
 iupdate(struct inode *ip)
 {
   struct buf *bp;
+	if (ip->type == 0) {
+		// this is the inode bit block
+    bp = bread(ip->dev, IBBLOCK(ip->inum));
+    int bitoffset = 1 << (ip->inum % 8);
+		bitoffset = ~bitoffset;
+		bp->data[ip->inum / 8] ^= bitoffset;
+		bwrite(bp);
+		brelse(bp);
+	}
+	
   struct dinode *dip;
 
   bp = bread(ip->dev, IBLOCK(ip->inum));

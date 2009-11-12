@@ -49,7 +49,7 @@ struct dinode {
 // 3 is for E block, SB, ibitmap block
 #define BBLOCK(b) (b/BPB + 3)
 
-// Bitmap Block containing the bit for block b
+// inode bitmap block containing the bit for inode i
 // 2 is for E block, SB
 #define IBBLOCK(i) (i/BPB + 2)
 

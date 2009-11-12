@@ -1244,7 +1244,7 @@ main(int argc, char *argv[])
   opentest();
   writetest();
   writetest1();
-  createtest();
+  //createtest();
 
   mem();
   pipe1();
@@ -1253,7 +1253,7 @@ main(int argc, char *argv[])
 
   rmdot();
   fourteen();
-  bigfile();
+  //bigfile();
   subdir();
   concreate();
   linktest();
