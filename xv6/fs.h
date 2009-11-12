@@ -39,12 +39,12 @@ struct dinode {
 #define IPB           (BSIZE / sizeof(struct dinode))
 
 // Block containing inode i
-#define IBLOCK(i)     ((i) / IPB + 2)
+#define IBLOCK(i)     ((i) / IPB + 4)
 
 // Bitmap bits per block
 #define BPB           (BSIZE*8)
 
-// Bitmap Block containing the bit for block b
+// Bitmap block containing the bit for data block b
 #define BBLOCK(b, ninodes) (b/BPB + (ninodes)/IPB + 3)
 
 // Directory is a file containing a sequence of dirent structures.

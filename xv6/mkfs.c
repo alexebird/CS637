@@ -95,7 +95,6 @@ main(int argc, char *argv[])
   for(i = 0; i < nblocks + usedblocks; i++)
     wsect(i, zeroes);
 
-
   //WRITE SUPER BLOCK TO DISK
   wsect(1, &sb);
 
