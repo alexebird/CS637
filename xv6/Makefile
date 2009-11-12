@@ -106,13 +106,9 @@ UPROGS=\
 	_mkdir\
 	_rm\
 	_sh\
+	_usertests\
 	_wc\
 	_zombie\
-	_bird\
-	_trace\
-	_schtest\
-
-#_usertests\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

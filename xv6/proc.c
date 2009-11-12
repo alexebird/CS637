@@ -5,9 +5,6 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "trace.h"
-
-#define MIN(x,y) (x < y ? x : y)
 
 struct spinlock proc_table_lock;
 
@@ -17,18 +14,6 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void forkret1(struct trapframe*);
-
-// Variables for the scheduler tracing infrastructure.
-#define TRACE_SIZE (100)
-
-typedef struct __trace_frame{
-  int pid;       // pid of the process that ran in the time slice.
-  int quantums;  // consecutive time slices the job was run in a row for.
-} trace_frame;
-
-int trace_status = TRACE_ON;
-trace_frame trace[TRACE_SIZE];
-int trace_index = 0;
 
 void
 pinit(void)
@@ -218,7 +203,6 @@ scheduler(void)
   struct proc *p;
   struct cpu *c;
   int i;
-  trace_frame *curr_trace_frm, *last_trace_frm;
 
   c = &cpus[cpu()];
   for(;;){
@@ -235,26 +219,10 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release proc_table_lock and then reacquire it
       // before jumping back to us.
-
-      //cprintf("current: %d\n", p->pid);
       c->curproc = p;
       setupsegs(p);
       p->state = RUNNING;
       swtch(&c->context, &p->context);
-
-      if (trace_status == TRACE_ON) {
-        last_trace_frm = &trace[(trace_index - 1) % TRACE_SIZE];
-        if (last_trace_frm->pid != p->pid) {
-          curr_trace_frm = &trace[trace_index % TRACE_SIZE];
-          curr_trace_frm->pid = p->pid;
-          curr_trace_frm->quantums = 1;
-          trace_index++;
-        }
-        else if (last_trace_frm->pid == p->pid) {
-          curr_trace_frm = &trace[(trace_index - 1) % TRACE_SIZE];
-          curr_trace_frm->quantums++;
-        }
-      }
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -511,15 +479,3 @@ procdump(void)
   }
 }
 
-void
-schtracedump(void)
-{
-  cprintf("The last %d jobs(oldest -> most recent):\n", MIN(TRACE_SIZE, trace_index));
-
-  trace_frame *trace_frm;
-  int i;
-  for (i = 0; i < MIN(TRACE_SIZE, trace_index); i++) {
-    trace_frm = &trace[i % TRACE_SIZE];
-    cprintf("pid: %d, quantums: %d\n", trace_frm->pid, trace_frm->quantums);
-  }
-}
