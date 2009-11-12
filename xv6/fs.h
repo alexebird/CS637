@@ -6,13 +6,14 @@
 // Inodes start at block 2.
 
 #define BSIZE 512  // block size
-#define NUM_CYLINDER_GRPS 8
+#define GROUPS 1
 
 // File system super block
 struct superblock {
   uint size;         // Size of file system image (blocks)
   uint nblocks;      // Number of data blocks
   uint ninodes;      // Number of inodes.
+  uint ngroups;      // Number of inodes.
 };
 
 #define NADDRS (NDIRECT+1)

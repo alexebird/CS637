@@ -10,9 +10,6 @@
 int nblocks = 994;
 int ninodes = 200;
 int size = 1024;
-//FFS
-int groups = 8;
-//FFS
 
 int fsfd;
 struct superblock sb;
@@ -77,9 +74,10 @@ main(int argc, char *argv[])
     exit(1);
   }
 
-  sb.size = xint(size);
-  sb.nblocks = xint(nblocks); // so whole disk is size sectors
-  sb.ninodes = xint(ninodes);
+  sb.size = xint(size * GROUPS);
+  sb.nblocks = xint(nblocks * GROUPS); // so whole disk is size sectors
+  sb.ninodes = xint(ninodes * GROUPS);
+  sb.ngroups = xint(GROUPS);
 
   //SETUP BITMAP SIZES
   ibitblocks = ninodes / (BSIZE * 8) + 1;
@@ -92,11 +90,12 @@ main(int argc, char *argv[])
   assert(nblocks + usedblocks == size);
 
   //ZERO DISK
-  for(i = 0; i < nblocks + usedblocks; i++)
+  for(i = 0; i < sb.size; i++)
     wsect(i, zeroes);
 
-  //WRITE SUPER BLOCK TO DISK
-  wsect(1, &sb);
+  //WRITE 8 SUPER BLOCKS TO DISK
+  for (i = 0; i < sb.size; i += sb.size / 8)
+	  wsect(i + 1, &sb);
 
   //ALLOCATE ROOT INODE, (WRITES TO DISK)
   rootino = ialloc(T_DIR);
@@ -153,8 +152,9 @@ main(int argc, char *argv[])
   din.size = xint(off);
   winode(rootino, &din);
 
-  //WRITE OUT THE INODE AND DATA BITMAPS
-  balloc();
+  //WRITE OUT THE INODE AND DATA BITMAPS FOR EACH CYL GRP
+  for (i = 0; i < sb.size; i += sb.size / 8)
+	  balloc();
 
   exit(0);
 }
@@ -234,10 +234,11 @@ ialloc(ushort type)
 
 //FUNCTION WILL FILL IN THE INODE BITMAP AND THE DATA BITMAP
 void
-balloc()
+balloc(int group)
 {
   uchar buf[512];
   int i;
+  int global_start_addr = (sb.size / GROUPS) * group;
 
   //assert(used < 512);  // there is only one bitmap block, so cant have more than 512 blocks.
   
@@ -247,14 +248,14 @@ balloc()
   for(i = 0; i < datablocks; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
-  wsect(3, buf);
+  wsect(global_start_addr + 3, buf);
 
   //WRITE OUT INODE BITMAP
   bzero(buf, 512);
   for(i=0; i < freeinode; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
-  wsect(2, buf);
+  wsect(global_start_addr + 2, buf);
 }
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
