@@ -296,12 +296,12 @@ ialloc(uint dev, short type)
         brelse(bp);
 
         bp = bread(dev, IBLOCK(b + bi));
-		dip = (struct dinode*)bp->data + bi%IPB;
+        dip = (struct dinode*)bp->data + bi%IPB;
         memset(dip, 0, sizeof(*dip));
         dip->type = type;
         bwrite(bp);
         brelse(bp);
-		return iget(dev, b + bi);
+        return iget(dev, b + bi);
                           //Returns data block number
                           //original implementation is actual block number
                           //in our implementation this should be the DATA block
@@ -318,15 +318,15 @@ void
 iupdate(struct inode *ip)
 {
   struct buf *bp;
-	if (ip->type == 0) {
-		// this is the inode bit block
+  if (ip->type == 0) {
+    // this is the inode bit block
     bp = bread(ip->dev, IBBLOCK(ip->inum));
     int bitoffset = 1 << (ip->inum % 8);
-		bp->data[ip->inum / 8] ^= bitoffset;
-		bwrite(bp);
-		brelse(bp);
-	}
-	
+    bp->data[ip->inum / 8] ^= bitoffset;
+    bwrite(bp);
+    brelse(bp);
+  }
+
   struct dinode *dip;
 
   bp = bread(ip->dev, IBLOCK(ip->inum));
@@ -372,7 +372,9 @@ bmap(struct inode *ip, uint bn, int alloc)
       if(!alloc)
         return -1;
       ip->addrs[INDIRECT] = addr = balloc(ip->dev);
+      bzero(ip->dev, addr);
     }
+
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
   
