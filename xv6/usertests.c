@@ -93,8 +93,9 @@ writetest1(void)
     printf(stdout, "error: creat big failed!\n");
     exit();
   }
+#define NMAX 13
 
-  for(i = 0; i < MAXFILE; i++) {
+  for(i = 0; i < NMAX; i++) {
     ((int*) buf)[0] = i;
     if(write(fd, buf, 512) != 512) {
       printf(stdout, "error: write big file failed\n", i);
@@ -114,7 +115,7 @@ writetest1(void)
   for(;;) {
     i = read(fd, buf, 512);
     if(i == 0) {
-      if(n == MAXFILE - 1) {
+      if(n == NMAX - 1) {
         printf(stdout, "read only %d blocks from big", n);
         exit();
       }
@@ -1241,32 +1242,32 @@ main(int argc, char *argv[])
   }
   close(open("usertests.ran", O_CREATE));
 
-  opentest();
-  writetest();
-  //writetest1();
-  createtest();
+  //opentest();
+  //writetest();
+  writetest1();
+  //createtest();
 
-  mem();
-  pipe1();
-  preempt();
-  exitwait();
+  //mem();
+  //pipe1();
+  //preempt();
+  //exitwait();
 
-  rmdot();
-  fourteen();
-  //bigfile();
-  subdir();
-  concreate();
-  linktest();
-  unlinkread();
-  createdelete();
-  twofiles();
-  sharedfd();
-  dirfile();
-  iref();
-  forktest();
-  bigdir(); // slow
+  //rmdot();
+  //fourteen();
+  ////bigfile();
+  //subdir();
+  //concreate();
+  //linktest();
+  //unlinkread();
+  //createdelete();
+  //twofiles();
+  //sharedfd();
+  //dirfile();
+  //iref();
+  //forktest();
+  //bigdir(); // slow
 
-  exectest();
+  //exectest();
 
   exit();
 }

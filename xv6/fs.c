@@ -277,26 +277,6 @@ iunlockput(struct inode *ip)
 struct inode*
 ialloc(uint dev, short type)
 {
-  //int inum;
-  //struct buf *bp;
-  //struct dinode *dip;
-  //struct superblock sb;
-
-  //readsb(dev, &sb);
-  //for(inum = 1; inum < sb.ninodes; inum++){  // loop over inode blocks
-    //bp = bread(dev, IBLOCK(inum));
-    //dip = (struct dinode*)bp->data + inum%IPB;
-    //if(dip->type == 0){  // a free inode
-      //memset(dip, 0, sizeof(*dip));
-      //dip->type = type;
-      //bwrite(bp);   // mark it allocated on the disk
-      //brelse(bp);
-      //return iget(dev, inum);
-    //}
-    //brelse(bp);
-  //}
-  //panic("ialloc: no inodes");
-
   int b, bi, m;
   struct buf *bp;
   struct dinode *dip;
