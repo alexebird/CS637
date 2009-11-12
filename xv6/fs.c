@@ -342,7 +342,6 @@ iupdate(struct inode *ip)
 		// this is the inode bit block
     bp = bread(ip->dev, IBBLOCK(ip->inum));
     int bitoffset = 1 << (ip->inum % 8);
-		bitoffset = ~bitoffset;
 		bp->data[ip->inum / 8] ^= bitoffset;
 		bwrite(bp);
 		brelse(bp);

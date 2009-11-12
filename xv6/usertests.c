@@ -1243,8 +1243,8 @@ main(int argc, char *argv[])
 
   opentest();
   writetest();
-  writetest1();
-  //createtest();
+  //writetest1();
+  createtest();
 
   mem();
   pipe1();
