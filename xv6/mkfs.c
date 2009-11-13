@@ -9,7 +9,7 @@
 
 int nblocks = DPG;
 int ninodes = IPG;
-int size = GROUP_BLOCKS;
+int size = BPG;
 
 int fsfd;
 struct superblock sb;
@@ -77,14 +77,11 @@ main(int argc, char *argv[])
   sb.size = xint(size * GROUPS);
   sb.nblocks = xint(nblocks * GROUPS); // so whole disk is size sectors
   sb.ninodes = xint(ninodes * GROUPS);
-  //sb.size = xint(size);
-  //sb.nblocks = xint(nblocks); // so whole disk is size sectors
-  //sb.ninodes = xint(ninodes);
   sb.ngroups = xint(GROUPS);
 
   //SETUP BITMAP SIZES
-  ibitblocks = ninodes / (BSIZE * 8) + 1;
-  dbitblocks = nblocks / (BSIZE * 8) + 1;
+  ibitblocks = IBITBLOCKS;
+  dbitblocks = DBITBLOCKS;
   usedblocks = ninodes / IPB + 3 + dbitblocks + ibitblocks;
   freeblock = usedblocks;
 
@@ -93,7 +90,6 @@ main(int argc, char *argv[])
   assert(nblocks + usedblocks == size);
 
   //ZERO DISK
-  //for(i = 0; i < sb.size * 8; i++)
   for(i = 0; i < sb.size; i++)
     wsect(i, zeroes);
 
@@ -156,8 +152,7 @@ main(int argc, char *argv[])
   din.size = xint(off);
   winode(rootino, &din);
 
-  //WRITE OUT THE INODE AND DATA BITMAPS FOR EACH CYL GRP
-  //for (i = 0; i < sb.size; i += sb.size / 8)
+  //WRITE OUT THE INODE AND DATA BITMAPS
   balloc();
 
   exit(0);
