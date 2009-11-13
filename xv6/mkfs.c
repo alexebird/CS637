@@ -7,9 +7,9 @@
 #include "types.h"
 #include "fs.h"
 
-int nblocks = 994;
-int ninodes = 200;
-int size = 1024;
+int nblocks = DPG;
+int ninodes = IPG;
+int size = GROUP_BLOCKS;
 
 int fsfd;
 struct superblock sb;
@@ -77,6 +77,9 @@ main(int argc, char *argv[])
   sb.size = xint(size * GROUPS);
   sb.nblocks = xint(nblocks * GROUPS); // so whole disk is size sectors
   sb.ninodes = xint(ninodes * GROUPS);
+  //sb.size = xint(size);
+  //sb.nblocks = xint(nblocks); // so whole disk is size sectors
+  //sb.ninodes = xint(ninodes);
   sb.ngroups = xint(GROUPS);
 
   //SETUP BITMAP SIZES
@@ -90,6 +93,7 @@ main(int argc, char *argv[])
   assert(nblocks + usedblocks == size);
 
   //ZERO DISK
+  //for(i = 0; i < sb.size * 8; i++)
   for(i = 0; i < sb.size; i++)
     wsect(i, zeroes);
 
@@ -153,8 +157,8 @@ main(int argc, char *argv[])
   winode(rootino, &din);
 
   //WRITE OUT THE INODE AND DATA BITMAPS FOR EACH CYL GRP
-  for (i = 0; i < sb.size; i += sb.size / 8)
-	  balloc();
+  //for (i = 0; i < sb.size; i += sb.size / 8)
+  balloc();
 
   exit(0);
 }
@@ -234,10 +238,11 @@ ialloc(ushort type)
 
 //FUNCTION WILL FILL IN THE INODE BITMAP AND THE DATA BITMAP
 void
-balloc(int group)
+balloc()
 {
   uchar buf[512];
   int i;
+  int group = 0;
   int global_start_addr = (sb.size / GROUPS) * group;
 
   //assert(used < 512);  // there is only one bitmap block, so cant have more than 512 blocks.
