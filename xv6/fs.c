@@ -302,10 +302,6 @@ ialloc(uint dev, short type)
         bwrite(bp);
         brelse(bp);
         return iget(dev, b + bi);
-                          //Returns data block number
-                          //original implementation is actual block number
-                          //in our implementation this should be the DATA block
-                          //number
       }
     }
     brelse(bp);

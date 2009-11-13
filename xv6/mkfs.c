@@ -14,18 +14,18 @@ int size = BPG;
 int fsfd;
 struct superblock sb;
 char zeroes[512];
-uint freeblock;  // next free data block
+uint used_datablocks = 0;  // next free data block
 uint usedblocks;
 uint ibitblocks;
 uint dbitblocks;
 uint freeinode = 1;
 
-void balloc();
+void balloc(int cylgrp);
 void wsect(uint, void*);
 void winode(uint, struct dinode*);
 void rinode(uint inum, struct dinode *ip);
 void rsect(uint sec, void *buf);
-uint ialloc(ushort type);
+uint ialloc(ushort type, int cylgrp);
 void iappend(uint inum, void *p, int n);
 
 // convert to intel byte order
@@ -83,12 +83,12 @@ main(int argc, char *argv[])
   ibitblocks = IBITBLOCKS;
   dbitblocks = DBITBLOCKS;
   usedblocks = SB + INODE_BPG + dbitblocks + ibitblocks;
-  //freeblock = usedblocks;
-  freeblock = 0;
+  //used_datablocks = usedblocks;
+  used_datablocks = 0;
 
-  printf("used %d (dbit %d ibit %d ninode %lu) free %u total %d\n",
+  printf("used %d (dbit %d ibit %d ninode %lu) used data blocks %u total %d\n",
 		  usedblocks, dbitblocks, ibitblocks, ninodes/IPB + 1,
-		  freeblock, nblocks+usedblocks);
+		  used_datablocks, nblocks+usedblocks);
 
   assert(nblocks + usedblocks == size);
 
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
     wsect(i, &sb);
 
   //ALLOCATE ROOT INODE, (WRITES TO DISK)
-  rootino = ialloc(T_DIR);
+  rootino = ialloc(T_DIR, 0);
   assert(rootino == 1);
 
   //ADDS DIRECTORY "." TO ROOT INODE
@@ -135,7 +135,7 @@ main(int argc, char *argv[])
       ++argv[i];
 
     //ALLOC NEXT INODE FOR USER FILES
-    inum = ialloc(T_FILE);           
+    inum = ialloc(T_FILE, 0);           
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, argv[i], DIRSIZ);
@@ -157,7 +157,7 @@ main(int argc, char *argv[])
   winode(rootino, &din);
 
   //WRITE OUT THE INODE AND DATA BITMAPS
-  balloc();
+  balloc(0);
 
   exit(0);
 }
@@ -215,16 +215,42 @@ rsect(uint sec, void *buf)
     perror("lseek");
     exit(1);
   }
-  if(read(fsfd, buf, 512) != 512){
+  int bytes = read(fsfd, buf, 512);
+  printf("bytes read: %d\n", bytes);
+  if(bytes != 512){
     perror("read");
     exit(1);
   }
 }
 
 uint
-ialloc(ushort type)
+ialloc(ushort type, int cylgrp)
 {
-  uint inum = freeinode++;
+  uint inum = 0;
+  uchar buf[512];
+  uint b, bi, m;
+
+  // for each inode bitmap
+  for(b = cylgrp * IPG; b < sb.ninodes; b += BPB){
+	printf("inode bitmap block for %d is %d\n", b, IBBLOCK(b));
+	//printf("read: %d\n", read(fsfd, buf, 512));
+	rsect(IBBLOCK(b), buf);
+    // for every bit in that bitmap (512*8 total)
+    for(bi = 0; bi < BPB; bi++){
+      m = 1 << (bi % 8);
+      if((buf[bi/8] & m) == 0){  // Is block free?
+        buf[bi/8] |= m;  // Mark block in use on disk.
+		wsect(IBBLOCK(b), buf);
+		inum = b + bi;
+	  }
+	}
+  }
+
+  if (inum == 0) {
+	  printf("no inode found.\n");
+	  exit(1);
+  }
+
   struct dinode din;
 
   bzero(&din, sizeof(din));
@@ -237,29 +263,25 @@ ialloc(ushort type)
 
 //FUNCTION WILL FILL IN THE INODE BITMAP AND THE DATA BITMAP
 void
-balloc()
+balloc(int cylgrp)
 {
   uchar buf[512];
   int i;
   int group = 0;
   int grp_offset = (sb.size / GROUPS) * group;
 
-  //assert(used < 512);  // there is only one bitmap block, so cant have more than 512 blocks.
-  
-  int datablocks = freeblock - (ibitblocks + dbitblocks + INODE_BPG + SB);
   //WRITE OUT DATA BITMAP
   bzero(buf, 512);
-  for(i = 0; i < datablocks; i++) {
+  for(i = 0; i < used_datablocks; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
   wsect(EMPTY + SB + ibitblocks + grp_offset, buf);
 
-  //WRITE OUT INODE BITMAP
-  bzero(buf, 512);
-  for(i=0; i < freeinode; i++) {
-    buf[i/8] = buf[i/8] | (0x1 << (i%8));
-  }
-  wsect(EMPTY + SB + grp_offset, buf);
+  //// WRITE OUT INODE BITMAP
+  //for(i=0; i < freeinode; i++) {
+	//buf[i/8] = buf[i/8] | (0x1 << (i%8));
+  //}
+  //wsect(EMPTY + SB + grp_offset, buf);
 }
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -286,25 +308,21 @@ iappend(uint inum, void *xp, int n)
     //FILE FITS INTO DIRECT BLOCKS
     if(fbn < NDIRECT) {
       if(xint(din.addrs[fbn]) == 0) {
-        din.addrs[fbn] = xint(DBLOCK(freeblock++));
-        //usedblocks++;
+        din.addrs[fbn] = xint(DBLOCK(used_datablocks++));
       }
       x = xint(din.addrs[fbn]);
     } else {
       
       //NEED TO ALLOCATE INDIRECT BLOCK
       if(xint(din.addrs[INDIRECT]) == 0) {
-        // printf("allocate indirect block\n");
-        din.addrs[INDIRECT] = xint(DBLOCK(freeblock++));
-        //usedblocks++;
+        din.addrs[INDIRECT] = xint(DBLOCK(used_datablocks++));
       }
-      // printf("read indirect block\n");
+
       rsect(xint(din.addrs[INDIRECT]), (char*) indirect);
       
       //NEED TO ALLOCATE NEW ENTRY IN INDIRECT BLOCK
       if(indirect[fbn - NDIRECT] == 0) {
-        indirect[fbn - NDIRECT] = xint(DBLOCK(freeblock++));
-        //usedblocks++;
+        indirect[fbn - NDIRECT] = xint(DBLOCK(used_datablocks++));
         wsect(xint(din.addrs[INDIRECT]), (char*) indirect);
       }
       x = xint(indirect[fbn-NDIRECT]);
