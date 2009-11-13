@@ -58,19 +58,32 @@ struct dinode {
 // 4 is: 1 for E block, 1 for SB, 1 for the ibitmap, 1 for the dbitmap
 // Add the offset to the correct cyl grp too.
 //#define IBLOCK(i)     (((i) / IPB + 4) + ((i) / IPG) * BPG)
-#define IBLOCK(i) (((i) / IPB + 4) + ((i) / IPG) * BPG)
+//
+// IBLOCK lines
+// Constant empty block
+// Offset to start of cyl grp
+// Constant offset into cyl grp
+// offset into inode blocks.
+#define IBLOCK(i)                   \
+    (EMPTY +                        \
+	(((i) / IPG)  * BPG) +          \
+	SB + IBITBLOCKS + DBITBLOCKS +  \
+	(((i) - ((i) / IPG) * IPG) / IPB ))
 
 // Bitmap bits per block
-#define BPB           (BSIZE*8)
+#define BPB (BSIZE * 8)
 
 // Bitmap Block containing the bit for block b
 // 3 is for E block, SB, ibitmap block
 #define BBLOCK(b) ((b/BPB + 3) + ((b) / DPG) * BPG)
 
 // inode bitmap block containing the bit for inode i
-// 2 is for E block, SB
 //#define IBBLOCK(i) ((i/BPB + 2) + ((i) / IPG) * BPG)
-#define IBBLOCK(i) ( EMPTY + ( (i) / IPG ) * BPG  + SB + ( (i - (IPG * ((i) / IPG))) / BPB ))
+#define IBBLOCK(i)         \
+	(EMPTY +               \
+	((i) / IPG ) * BPG  +  \
+	SB +                   \
+	((i - (IPG * ((i) / IPG))) / BPB ))
 
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14

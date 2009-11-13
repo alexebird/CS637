@@ -86,7 +86,7 @@ main(int argc, char *argv[])
   freeblock = usedblocks;
 
   printf("used %d (dbit %d ibit %d ninode %lu) free %u total %d\n", usedblocks, dbitblocks, ibitblocks, ninodes/IPB + 1, freeblock, nblocks+usedblocks);
-  printf("nblocks: %d, usedblocks: %d, size %d\n",nblocks,usedblocks,size);
+
   assert(nblocks + usedblocks == size);
 
   //ZERO DISK
@@ -174,7 +174,8 @@ wsect(uint sec, void *buf)
 uint
 i2b(uint inum)
 {
-  return (inum / IPB) + 2 + ibitblocks + dbitblocks;    //+2 comes from Empty block + super block (start writing at location 2)
+  //return (inum / IPB) + 2 + ibitblocks + dbitblocks;    //+2 comes from Empty block + super block (start writing at location 2)
+  return IBLOCK(inum);
 }
 
 void
