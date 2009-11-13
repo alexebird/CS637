@@ -102,6 +102,7 @@ main(int argc, char *argv[])
     wsect(i, &sb);
 
   //ALLOCATE ROOT INODE, (WRITES TO DISK)
+  printf("here\n");
   rootino = ialloc(T_DIR, 0);
   assert(rootino == 1);
 
@@ -215,6 +216,7 @@ rsect(uint sec, void *buf)
     perror("lseek");
     exit(1);
   }
+  printf("reading sec %d\n", sec);
   int bytes = read(fsfd, buf, 512);
   printf("bytes read: %d\n", bytes);
   if(bytes != 512){
@@ -232,18 +234,18 @@ ialloc(ushort type, int cylgrp)
 
   // for each inode bitmap
   for(b = cylgrp * IPG; b < sb.ninodes; b += BPB){
+	printf("b: %d\n", b);
 	printf("inode bitmap block for %d is %d\n", b, IBBLOCK(b));
-	//printf("read: %d\n", read(fsfd, buf, 512));
 	rsect(IBBLOCK(b), buf);
     // for every bit in that bitmap (512*8 total)
-    for(bi = 0; bi < BPB; bi++){
-      m = 1 << (bi % 8);
-      if((buf[bi/8] & m) == 0){  // Is block free?
-        buf[bi/8] |= m;  // Mark block in use on disk.
-		wsect(IBBLOCK(b), buf);
-		inum = b + bi;
-	  }
-	}
+    //for(bi = 0; bi < BPB; bi++){
+      //m = 1 << (bi % 8);
+      //if((buf[bi/8] & m) == 0){  // Is block free?
+        //buf[bi/8] |= m;  // Mark block in use on disk.
+		//wsect(IBBLOCK(b), buf);
+		//inum = b + bi;
+	  //}
+	//}
   }
 
   if (inum == 0) {
