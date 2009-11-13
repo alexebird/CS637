@@ -72,17 +72,24 @@ struct dinode {
 // offset into inode blocks.
 #define IBLOCK(i)                   \
     (EMPTY +                        \
-    (GROUPI(i)  * BPG) +          \
+    (GROUPI(i)  * BPG) +            \
     SB + IBITBLOCKS + DBITBLOCKS +  \
     (((i) - GROUPI(i) * IPG) / IPB ))
+
+// Map data block number to block address
+#define DBLOCK(b)                               \
+    (EMPTY +                                    \
+	(GROUPB(b) * BPG) +                         \
+	SB + IBITBLOCKS + DBITBLOCKS + INODE_BPG +  \
+	( b - GROUPB(b) * DPG))
 
 // Bitmap bits per block
 #define BPB (BSIZE * 8)
 
 // Bitmap Block containing the bit for block b
 // 3 is for E block, SB, ibitmap block
-//#define BBLOCK(b) ((b/BPB + 3) + ((b) / DPG) * BPG)
-#define BBLOCK(b)      \
+//#define DBBLOCK(b) ((b/BPB + 3) + ((b) / DPG) * BPG)
+#define DBBLOCK(b)     \
     (EMPTY +           \
 	GROUPB(b) +        \
 	SB + IBITBLOCKS +  \
@@ -92,7 +99,7 @@ struct dinode {
 //#define IBBLOCK(i) ((i/BPB + 2) + ((i) / IPG) * BPG)
 #define IBBLOCK(i)         \
     (EMPTY +               \
-    GROUPI(i) * BPG  +  \
+    GROUPI(i) * BPG  +     \
     SB +                   \
     ((i - GROUPI(i) * IPG) / BPB ))
 

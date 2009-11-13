@@ -14,7 +14,7 @@ int size = BPG;
 int fsfd;
 struct superblock sb;
 char zeroes[512];
-uint freeblock;
+uint freeblock;  // next free data block
 uint usedblocks;
 uint ibitblocks;
 uint dbitblocks;
@@ -83,7 +83,8 @@ main(int argc, char *argv[])
   ibitblocks = IBITBLOCKS;
   dbitblocks = DBITBLOCKS;
   usedblocks = SB + INODE_BPG + dbitblocks + ibitblocks;
-  freeblock = usedblocks;
+  //freeblock = usedblocks;
+  freeblock = 0;
 
   printf("used %d (dbit %d ibit %d ninode %lu) free %u total %d\n",
 		  usedblocks, dbitblocks, ibitblocks, ninodes/IPB + 1,
@@ -177,7 +178,6 @@ wsect(uint sec, void *buf)
 uint
 i2b(uint inum)
 {
-  //return (inum / IPB) + 2 + ibitblocks + dbitblocks;    //+2 comes from Empty block + super block (start writing at location 2)
   return IBLOCK(inum);
 }
 
@@ -286,8 +286,8 @@ iappend(uint inum, void *xp, int n)
     //FILE FITS INTO DIRECT BLOCKS
     if(fbn < NDIRECT) {
       if(xint(din.addrs[fbn]) == 0) {
-        din.addrs[fbn] = xint(freeblock++);
-        usedblocks++;
+        din.addrs[fbn] = xint(DBLOCK(freeblock++));
+        //usedblocks++;
       }
       x = xint(din.addrs[fbn]);
     } else {
@@ -295,16 +295,16 @@ iappend(uint inum, void *xp, int n)
       //NEED TO ALLOCATE INDIRECT BLOCK
       if(xint(din.addrs[INDIRECT]) == 0) {
         // printf("allocate indirect block\n");
-        din.addrs[INDIRECT] = xint(freeblock++);
-        usedblocks++;
+        din.addrs[INDIRECT] = xint(DBLOCK(freeblock++));
+        //usedblocks++;
       }
       // printf("read indirect block\n");
       rsect(xint(din.addrs[INDIRECT]), (char*) indirect);
       
       //NEED TO ALLOCATE NEW ENTRY IN INDIRECT BLOCK
       if(indirect[fbn - NDIRECT] == 0) {
-        indirect[fbn - NDIRECT] = xint(freeblock++);
-        usedblocks++;
+        indirect[fbn - NDIRECT] = xint(DBLOCK(freeblock++));
+        //usedblocks++;
         wsect(xint(din.addrs[INDIRECT]), (char*) indirect);
       }
       x = xint(indirect[fbn-NDIRECT]);
