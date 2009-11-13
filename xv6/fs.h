@@ -6,18 +6,24 @@
 // Inodes start at block 2.
 
 #define BSIZE  512
-#define BPG    1024
 #define GROUPS 8
-#define FSSIZE (GROUPS * BPG)
-// Inodes per block.
-#define IPB           (BSIZE / sizeof(struct dinode))
+// Blocks per group
+#define BPG    1024
 // Inodes per group.
 #define IPG 200
 // Data blocks per group.
-#define DPG 994
+#define DPG 996
+#define FSSIZE (GROUPS * BPG)
+// Inode blocks per grp
+#define INODE_BPG ((IPG / IPB) + (IPG % IPB == 0 ? 0 : 1))
+// Inodes per block.
+#define IPB           (BSIZE / sizeof(struct dinode))
 // The number of blocks occupied by the empty block and the sb
 #define EMPTY  1
 #define SB     1
+
+#define GROUPI(i) ((i) / IPG)
+#define GROUPB(b) ((b) / DPG)
 
 // 8 means 8 bits per byte
 // The modulus at the end makes sure a block isnt wasted when the number of
@@ -66,24 +72,29 @@ struct dinode {
 // offset into inode blocks.
 #define IBLOCK(i)                   \
     (EMPTY +                        \
-	(((i) / IPG)  * BPG) +          \
-	SB + IBITBLOCKS + DBITBLOCKS +  \
-	(((i) - ((i) / IPG) * IPG) / IPB ))
+    (GROUPI(i)  * BPG) +          \
+    SB + IBITBLOCKS + DBITBLOCKS +  \
+    (((i) - GROUPI(i) * IPG) / IPB ))
 
 // Bitmap bits per block
 #define BPB (BSIZE * 8)
 
 // Bitmap Block containing the bit for block b
 // 3 is for E block, SB, ibitmap block
-#define BBLOCK(b) ((b/BPB + 3) + ((b) / DPG) * BPG)
+//#define BBLOCK(b) ((b/BPB + 3) + ((b) / DPG) * BPG)
+#define BBLOCK(b)      \
+    (EMPTY +           \
+	GROUPB(b) +        \
+	SB + IBITBLOCKS +  \
+	(((b) - GROUPB(b) * DPG) / BPB ))
 
 // inode bitmap block containing the bit for inode i
 //#define IBBLOCK(i) ((i/BPB + 2) + ((i) / IPG) * BPG)
 #define IBBLOCK(i)         \
-	(EMPTY +               \
-	((i) / IPG ) * BPG  +  \
-	SB +                   \
-	((i - (IPG * ((i) / IPG))) / BPB ))
+    (EMPTY +               \
+    GROUPI(i) * BPG  +  \
+    SB +                   \
+    ((i - GROUPI(i) * IPG) / BPB ))
 
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14

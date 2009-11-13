@@ -34,6 +34,8 @@ readsb(int dev, struct superblock *sb)
   bp = bread(dev, 1);
   memmove(sb, bp->data, sizeof(*sb));
   brelse(bp);
+
+  cprintf("READSB:: superblock size=%d nblocks=%d ninodes=%d\n", sb->size, sb->nblocks, sb-> ninodes);
 }
 
 // Zero a block.
@@ -286,6 +288,7 @@ ialloc(uint dev, short type)
   readsb(dev, &sb);
   // for each inode bitmap block. (512 blocks at a time until size)
   for(b = 0; b < sb.ninodes / IPB; b += BPB){
+	cprintf("IALLOC:: reading inode bitblock %d.\n", IBBLOCK(b));
     bp = bread(dev, IBBLOCK(b));
     // for every bit in that bitmap (512 total)
     for(bi = 0; bi < BPB; bi++){

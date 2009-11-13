@@ -82,20 +82,23 @@ main(int argc, char *argv[])
   //SETUP BITMAP SIZES
   ibitblocks = IBITBLOCKS;
   dbitblocks = DBITBLOCKS;
-  usedblocks = ninodes / IPB + 3 + dbitblocks + ibitblocks;
+  usedblocks = SB + INODE_BPG + dbitblocks + ibitblocks;
   freeblock = usedblocks;
 
-  printf("used %d (dbit %d ibit %d ninode %lu) free %u total %d\n", usedblocks, dbitblocks, ibitblocks, ninodes/IPB + 1, freeblock, nblocks+usedblocks);
+  printf("used %d (dbit %d ibit %d ninode %lu) free %u total %d\n",
+		  usedblocks, dbitblocks, ibitblocks, ninodes/IPB + 1,
+		  freeblock, nblocks+usedblocks);
 
   assert(nblocks + usedblocks == size);
 
   //ZERO DISK
-  for(i = 0; i < sb.size; i++)
+  for(i = 0; i < sb.size + 1; i++)
     wsect(i, zeroes);
 
   //WRITE 8 SUPER BLOCKS TO DISK
-  for (i = 0; i < sb.size; i += sb.size / 8)
-	  wsect(i + 1, &sb);
+  // start at 1 to skip the empty block
+  for (i = 1; i < sb.size; i += sb.size / 8)
+    wsect(i, &sb);
 
   //ALLOCATE ROOT INODE, (WRITES TO DISK)
   rootino = ialloc(T_DIR);
@@ -239,24 +242,24 @@ balloc()
   uchar buf[512];
   int i;
   int group = 0;
-  int global_start_addr = (sb.size / GROUPS) * group;
+  int grp_offset = (sb.size / GROUPS) * group;
 
   //assert(used < 512);  // there is only one bitmap block, so cant have more than 512 blocks.
   
-  int datablocks = freeblock - (ibitblocks + dbitblocks + (ninodes / IPB) + 3);
+  int datablocks = freeblock - (ibitblocks + dbitblocks + INODE_BPG + SB);
   //WRITE OUT DATA BITMAP
   bzero(buf, 512);
   for(i = 0; i < datablocks; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
-  wsect(global_start_addr + 3, buf);
+  wsect(EMPTY + SB + ibitblocks + grp_offset, buf);
 
   //WRITE OUT INODE BITMAP
   bzero(buf, 512);
   for(i=0; i < freeinode; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
-  wsect(global_start_addr + 2, buf);
+  wsect(EMPTY + SB + grp_offset, buf);
 }
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
