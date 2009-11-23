@@ -21,10 +21,6 @@ int dup(int);
 int getpid();
 char* sbrk(int);
 int sleep(int);
-int sleep(int);
-int bird(void);
-int schtrace(int);
-int ticks(void);
 
 // ulib.c
 int stat(char*, struct stat*);
