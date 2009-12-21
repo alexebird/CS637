@@ -3,7 +3,6 @@
 
 // Block 0 is unused.
 // Block 1 is super block.
-// Inodes start at block 2.
 
 #define BSIZE  512
 #define GROUPS 8
@@ -22,14 +21,18 @@
 #define EMPTY  1
 #define SB     1
 
+// The group an inode or data block is in.
+// TESTED
 #define GROUPI(i) ((i) / IPG)
+// TESTED
 #define GROUPB(b) ((b) / DPG)
 
 // 8 means 8 bits per byte
 // The modulus at the end makes sure a block isnt wasted when the number of
 // inodes is divisible by the number of bits in the bitmap
-#define IBITBLOCKS IPG / (BSIZE * 8) + (IPG % (BSIZE * 8) == 0 ? 0 : 1)
-#define DBITBLOCKS DPG / (BSIZE * 8) + (IPG % (BSIZE * 8) == 0 ? 0 : 1)
+// BOTH TESTED
+#define IBITBLOCKS (IPG / (BSIZE * 8) + (IPG % (BSIZE * 8) == 0 ? 0 : 1))
+#define DBITBLOCKS (DPG / (BSIZE * 8) + (DPG % (BSIZE * 8) == 0 ? 0 : 1))
 
 // File system super block
 struct superblock {
@@ -59,12 +62,7 @@ struct dinode {
 #define T_FILE 2   // File
 #define T_DEV  3   // Special device
 
-
 // Block containing inode i
-// 4 is: 1 for E block, 1 for SB, 1 for the ibitmap, 1 for the dbitmap
-// Add the offset to the correct cyl grp too.
-//#define IBLOCK(i)     (((i) / IPB + 4) + ((i) / IPG) * BPG)
-//
 // IBLOCK lines
 // Constant empty block
 // Offset to start of cyl grp
@@ -87,20 +85,17 @@ struct dinode {
 #define BPB (BSIZE * 8)
 
 // Bitmap Block containing the bit for block b
-// 3 is for E block, SB, ibitmap block
-//#define DBBLOCK(b) ((b/BPB + 3) + ((b) / DPG) * BPG)
 #define DBBLOCK(b)     \
     (EMPTY +           \
-	GROUPB(b) +        \
+	GROUPB(b) * BPG +  \
 	SB + IBITBLOCKS +  \
 	(((b) - GROUPB(b) * DPG) / BPB ))
 
 // inode bitmap block containing the bit for inode i
-//#define IBBLOCK(i) ((i/BPB + 2) + ((i) / IPG) * BPG)
-#define IBBLOCK(i)         \
-    (EMPTY +               \
-    GROUPI(i) * BPG  +     \
-    SB +                   \
+#define IBBLOCK(i)     \
+    (EMPTY +           \
+    GROUPI(i) * BPG +  \
+    SB +               \
     ((i - GROUPI(i) * IPG) / BPB ))
 
 // Directory is a file containing a sequence of dirent structures.

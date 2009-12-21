@@ -51,8 +51,6 @@ bzero(int dev, int bno)
 // Blocks. 
 
 // Allocate a disk block.
-// TODO - perhaps we should add a param to tell balloc which cyl-grp to look
-// in for a block.
 static uint
 balloc(uint dev)
 {
@@ -62,17 +60,19 @@ balloc(uint dev)
 
   bp = 0;
   readsb(dev, &sb);
-  // for each data bitmap block. (512 blocks at a time until size)
-  for(b = 0; b < sb.nblocks; b += BPB){
-    // need to chance DBBLOCK to find new dbitmap block.
+  // for each data bitmap block. (DPG blocks at a time until size)
+  for(b = 0; b < sb.nblocks; b += DPG){
     bp = bread(dev, DBBLOCK(b));
+    cprintf("bitmap block for %d is %d\n", b, DBBLOCK(b));
     // for every bit in that bitmap (512 total)
-    for(bi = 0; bi < BPB; bi++){
+    for(bi = 0; bi < DPG; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use on disk.
         bwrite(bp);
         brelse(bp);
+		cprintf("balloc: %d\n", b+bi);
+		//cprintf("bitmap bit %d\n", bi + m);
         return b + bi;    //Returns data block number
                           //original implementation is actual block number
                           //in our implementation this should be the DATA block
@@ -85,7 +85,6 @@ balloc(uint dev)
 }
 
 // Free a disk block.
-// maybe?
 static void
 bfree(int dev, uint b)
 {
@@ -95,12 +94,15 @@ bfree(int dev, uint b)
 
   //ZERO BLOCK b ON DEVICE dev
   bzero(dev, b);
+  cprintf("freeing %d\n", b);
 
   //SET DATABLOCK TO UNUSED IN DATA BITMAP
   readsb(dev, &sb);
   bp = bread(dev, DBBLOCK(b));
-  bi = b % BPB;
+  bi = b % DPG;
   m = 1 << (bi % 8);
+  cprintf("bitmap block %d\n", DBBLOCK(b));
+
   if((bp->data[bi/8] & m) == 0)
     panic("freeing free block");
   bp->data[bi/8] &= ~m;  // Mark block free on disk.
@@ -285,10 +287,10 @@ ialloc(uint dev, short type)
   bp = 0;
   readsb(dev, &sb);
   // for each inode bitmap block. (512 blocks at a time until size)
-  for(b = 0; b < sb.ninodes / IPB; b += BPB){
+  for(b = 0; b < sb.ninodes; b += IPG){
     bp = bread(dev, IBBLOCK(b));
     // for every bit in that bitmap (512 total)
-    for(bi = 0; bi < BPB; bi++){
+    for(bi = 0; bi < IPG; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use on disk.

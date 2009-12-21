@@ -109,6 +109,9 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
+	_genfiles\
+
+TESTFILES=$(wildcard *.tf)
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

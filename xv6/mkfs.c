@@ -99,7 +99,7 @@ main(int argc, char *argv[])
   //WRITE 8 SUPER BLOCKS TO DISK
   // start at 1 to skip the empty block
   for (i = 1; i < sb.size; i += sb.size / 8)
-    wsect(i, &sb);
+	  wsect(i, &sb);
 
   //ALLOCATE ROOT INODE, (WRITES TO DISK)
   rootino = ialloc(T_DIR);
@@ -111,7 +111,7 @@ main(int argc, char *argv[])
   strcpy(de.name, ".");
   iappend(rootino, &de, sizeof(de));
 
-  //ADDS DIRECTORY ".." TO ROOT INODE
+  ////ADDS DIRECTORY ".." TO ROOT INODE
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, "..");
@@ -120,33 +120,33 @@ main(int argc, char *argv[])
 
   //LOOP THROUGH COMMAND LINE FINDING FILES TO ADD TO FS
   for(i = 2; i < argc; i++){
-    assert(index(argv[i], '/') == 0);  //ensures / does not exist in file name
+	assert(index(argv[i], '/') == 0);  //ensures / does not exist in file name
 
-    if((fd = open(argv[i], 0)) < 0){
-      perror(argv[i]);
-      exit(1);
-    }
-    
-    // Skip leading _ in name when writing to file system.
-    // The binaries are named _rm, _cat, etc. to keep the
-    // build operating system from trying to execute them
-    // in place of system binaries like rm and cat.
-    if(argv[i][0] == '_')            //removes _ from start of file name
-      ++argv[i];
+	if((fd = open(argv[i], 0)) < 0){
+	  perror(argv[i]);
+	  exit(1);
+	}
+	
+	// Skip leading _ in name when writing to file system.
+	// The binaries are named _rm, _cat, etc. to keep the
+	// build operating system from trying to execute them
+	// in place of system binaries like rm and cat.
+	if(argv[i][0] == '_')            //removes _ from start of file name
+	  ++argv[i];
 
-    //ALLOC NEXT INODE FOR USER FILES
-    inum = ialloc(T_FILE);           
-    bzero(&de, sizeof(de));
-    de.inum = xshort(inum);
-    strncpy(de.name, argv[i], DIRSIZ);
-    //ADD USER FILE NAME TO ROOT DIRECTORY
-    iappend(rootino, &de, sizeof(de)); 
+	//ALLOC NEXT INODE FOR USER FILES
+	inum = ialloc(T_FILE);           
+	bzero(&de, sizeof(de));
+	de.inum = xshort(inum);
+	strncpy(de.name, argv[i], DIRSIZ);
+	//ADD USER FILE NAME TO ROOT DIRECTORY
+	iappend(rootino, &de, sizeof(de)); 
 
-    //COPY USER DATA INTO DATA BLOCk
-    while((cc = read(fd, buf, sizeof(buf))) > 0)
-      iappend(inum, buf, cc);
+	//COPY USER DATA INTO DATA BLOCk
+	while((cc = read(fd, buf, sizeof(buf))) > 0)
+	  iappend(inum, buf, cc);
 
-    close(fd);
+	close(fd);
   }
 
   // fix size of root inode dir
