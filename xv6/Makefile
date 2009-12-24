@@ -109,7 +109,7 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
-	_genfiles\
+	#_genfiles\
 
 TESTFILES=$(wildcard *.tf)
 

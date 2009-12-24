@@ -25,6 +25,9 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
 
+void bin_prnt_byte(int x);
+void printblock(char *buf,int bit);
+
 // Read the super block.
 static void
 readsb(int dev, struct superblock *sb)
@@ -63,7 +66,6 @@ balloc(uint dev)
   // for each data bitmap block. (DPG blocks at a time until size)
   for(b = 0; b < sb.nblocks; b += DPG){
     bp = bread(dev, DBBLOCK(b));
-    cprintf("bitmap block for %d is %d\n", b, DBBLOCK(b));
     // for every bit in that bitmap (512 total)
     for(bi = 0; bi < DPG; bi++){
       m = 1 << (bi % 8);
@@ -71,8 +73,9 @@ balloc(uint dev)
         bp->data[bi/8] |= m;  // Mark block in use on disk.
         bwrite(bp);
         brelse(bp);
-		cprintf("balloc: %d\n", b+bi);
-		//cprintf("bitmap bit %d\n", bi + m);
+				cprintf("balloc: %d\n", b+bi);
+				cprintf("bitmap block for %d is %d\n", b, DBBLOCK(b));
+				//cprintf("bitmap bit %d\n", bi + m);
         return b + bi;    //Returns data block number
                           //original implementation is actual block number
                           //in our implementation this should be the DATA block
@@ -100,6 +103,7 @@ bfree(int dev, uint b)
   readsb(dev, &sb);
   bp = bread(dev, DBBLOCK(b));
   bi = b % DPG;
+	printblock(bp->data,b + bi);
   m = 1 << (bi % 8);
   cprintf("bitmap block %d\n", DBBLOCK(b));
 
@@ -655,4 +659,29 @@ struct inode*
 nameiparent(char *path, char *name)
 {
   return _namei(path, 1, name);
+}
+
+void bin_prnt_byte(int x)
+{
+    int n;
+    for (n = 0; n < 8; n++) {
+        if((x & 0x80) != 0)
+            cprintf("1");
+        else
+            cprintf("0");
+        x = x<<1;
+    }
+}
+
+void printblock(char *buf, int bit)
+{
+    int i;
+    for (i = 0; i < (DPG / 8) + 1; i++) {
+        bin_prnt_byte(buf[i]);
+				if (i > bit / 8)
+					cprintf("<");
+				else
+					cprintf(" ");
+    }
+    cprintf("\n");
 }

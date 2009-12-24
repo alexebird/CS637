@@ -9,6 +9,7 @@ int b,bi,m;
 
 int balloc();
 void bfree(uint b);
+void printblock(int block);
 
 int main(int argc, char *argv[])
 {
@@ -82,9 +83,10 @@ int main(int argc, char *argv[])
     
     memset(data1, 0, 512);
     memset(data2, 0, 512);
-    int blocknums[1000];
+#define numblocks 1030
+    int blocknums[numblocks];
     
-    for(i = 0; i < 1000; i++){
+    for(i = 0; i < numblocks; i++){
         printblock(DBBLOCK(b));
         blocknums[i] = balloc();
         printf("balloc: %d\n", blocknums[i]);
@@ -94,10 +96,10 @@ int main(int argc, char *argv[])
 
     printf("FREEING\n");
 
-    for(i = 0; i < 1000; i++){
-        printblock(DBBLOCK(blocknums[i]));
+    for(i = 0; i < numblocks; i++){
+        //printblock(DBBLOCK(blocknums[i]));
         bfree(blocknums[i]);
-        printblock(DBBLOCK(blocknums[i]));
+        //printblock(DBBLOCK(blocknums[i]));
         printf("\n");
     }
 

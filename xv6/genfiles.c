@@ -18,12 +18,12 @@ void writetest(char *name)
     }
 
     int i;
-    for(i = 0; i < 100; i++) {
-        if(write(fd, "aaaaaaaaaa", 10) != 10) {
+    for(i = 0; i < 225; i++) {  // 8 blocks per file. (8th block has only 1 byte)
+        if(write(fd, "aaaaaaaa", 8) != 8) {
             printf(stdout, "error: write aa %d new file failed\n", i);
             exit();
         }
-        if(write(fd, "bbbbbbbbbb", 10) != 10) {
+        if(write(fd, "bbbbbbbb", 8) != 8) {
             printf(stdout, "error: write bb %d new file failed\n", i);
             exit();
         }
@@ -51,14 +51,14 @@ void writetest(char *name)
 
 char *nextfname()
 {
-    name[3] = name[3] + 1;
+    //name[3]++;
 
-    if (name[3] == 0x5b) {
+    if (++name[3] == 0x5b) {
         name[3] = 0x41;
-        name[2] = name[2] + 1;
-        if (name[2] == 0x5b) {
+        //name[2]++;
+        if (++name[2] == 0x5b) {
             name[2] = 0x41;
-            name[1] = name[1] + 1;
+            name[1]++;
         }
     }
 
@@ -68,7 +68,7 @@ char *nextfname()
 void createtest()
 {
     int i, fd;
-    int numfiles = 150;
+    int numfiles = 100;
 
     printf(stdout, "STARTING: many creates test\n");
 
@@ -96,6 +96,8 @@ void createtest()
 
 int main(int argc, char *argv[])
 {
+    printf(stdout, "Starting genfiles.\n");
+
     name[0] = 'f';
     name[1] = 'A';
     name[2] = 'A';
@@ -103,6 +105,7 @@ int main(int argc, char *argv[])
     name[4] = '\0';
 
     createtest();
+    printf(stdout, "Exiting genfiles.\n");
     exit();
 }
 

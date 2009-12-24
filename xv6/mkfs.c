@@ -111,7 +111,7 @@ main(int argc, char *argv[])
   strcpy(de.name, ".");
   iappend(rootino, &de, sizeof(de));
 
-  ////ADDS DIRECTORY ".." TO ROOT INODE
+  //ADDS DIRECTORY ".." TO ROOT INODE
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, "..");
@@ -244,14 +244,18 @@ balloc()
   int group = 0;
   int grp_offset = (sb.size / GROUPS) * group;
 
-  //assert(used < 512);  // there is only one bitmap block, so cant have more than 512 blocks.
-  
-  int datablocks = freeblock - (ibitblocks + dbitblocks + INODE_BPG + SB);
+  //int datablocks = freeblock - (ibitblocks + dbitblocks + INODE_BPG + SB);
   //WRITE OUT DATA BITMAP
   bzero(buf, 512);
-  for(i = 0; i < datablocks; i++) {
+  //for(i = 0; i < datablocks; i++) {
+  for(i = 0; i < freeblock; i++) {
     buf[i/8] = buf[i/8] | (0x1 << (i%8));
   }
+
+  for(i = 0; i < 512 / 32; i++) {
+    buf[i] = xint(buf[i]);
+  }
+
   wsect(EMPTY + SB + ibitblocks + grp_offset, buf);
 
   //WRITE OUT INODE BITMAP
